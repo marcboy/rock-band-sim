@@ -1,6 +1,19 @@
 # Rock Band Sim — Project Handoff
 
-*Everything you need to restart this project in a new Claude session or on another machine. Written May 20, 2026.*
+*Everything you need to restart this project in a new Claude session or on another machine. Last updated May 20, 2026 · prototype version **v0.3.0**.*
+
+**GitHub:** https://github.com/marcboy/rock-band-sim
+**Local path:** `/Users/marcboyer/Documents/Claude/projects/rock-band-sim/`
+
+---
+
+## Changelog
+
+- **v0.3.0** — 3 save slots with switcher modal in the nav. Legacy single-save data auto-migrates to Slot 1.
+- **v0.2.2** — Buzz feed is now scrollable in a fixed-height container; Dashboard layout no longer shifts as events accumulate.
+- **v0.2.1** — Fixed disabled buttons in Studio (HTML boolean-attribute bug — `setAttribute("disabled", false)` still disables the element).
+- **v0.2.0** — Version footer added to Dashboard.
+- **v0.1.x** — Initial prototype with Band / Studio / Albums tabs, real sim formulas, headless playtest harness, 5 wireframes, full design spec.
 
 ---
 
@@ -47,15 +60,17 @@ weeklyBurn       = $200
 
 A song has 3 quality dimensions (hook, vibe, edge — each 0–10, currently random). Album quality = mean of (hook+vibe+edge)/3 across tracks.
 
-## 4. Files in the repo (already a local git repo with one commit)
+## 4. Files in the repo
 
-Location on this machine: `/Users/marcboyer/Library/Application Support/Claude/local-agent-mode-sessions/46056cf5-300e-45ce-aeac-f06c3679caf1/a85730eb-4527-4309-b9e5-2a754c7f36db/local_554f83a6-178d-43ed-82bb-a7701f55ad0b/outputs/`
+**Local path:** `/Users/marcboyer/Documents/Claude/projects/rock-band-sim/`
+**GitHub:** https://github.com/marcboy/rock-band-sim
 
 | File | Purpose |
 |---|---|
 | `README.md` | Repo overview |
+| `HANDOFF.md` | This document |
 | `rock-band-sim-spec.md` | **12-section design doc.** Concept, systems (time, band, songwriting, albums, fans, money, tour, events), formulas, screen map, roadmap, open questions |
-| `rock-band-sim-prototype.html` | **Single-file interactive prototype.** Open in any browser. Three tabs (Band / Studio / Albums) working. Real sim math. `Space` advances a week, `R` resets. localStorage persistence |
+| `rock-band-sim-prototype.html` | **Single-file interactive prototype.** Open in any browser. Three tabs (Band / Studio / Albums) working. Real sim math. `Space` advances a week, `R` resets. 3 save slots via the "Slot N" button in the nav. localStorage persistence |
 | `wireframe-01-dashboard.svg` | Phone mockup of the Band/Dashboard screen |
 | `wireframe-02-studio.svg` | Phone mockup of the Studio screen |
 | `wireframe-03-albums.svg` | Phone mockup of the Discography screen |
@@ -64,12 +79,19 @@ Location on this machine: `/Users/marcboyer/Library/Application Support/Claude/l
 | `playtest.js` | Headless Node.js harness that simulates an AI player for 100 weeks. Used to validate the loop math |
 | `.gitignore` | Standard ignores |
 
-To push to GitHub from terminal:
+To clone elsewhere:
 ```bash
-cd path/to/outputs
-gh repo create rock-band-sim --public --source=. --remote=origin --push
-# or, without gh: create empty repo at github.com/new, then:
-# git remote add origin https://github.com/USERNAME/rock-band-sim.git && git push -u origin main
+git clone https://github.com/marcboy/rock-band-sim.git
+cd rock-band-sim
+open rock-band-sim-prototype.html
+```
+
+To push new commits:
+```bash
+cd /Users/marcboyer/Documents/Claude/projects/rock-band-sim
+git add -A
+git commit -m "your message"
+git push
 ```
 
 ## 5. Key design decisions worth keeping
@@ -118,11 +140,17 @@ Loop works. Numbers compound. But 11 albums in 2 years is way too many for reali
 ## 8. What's intentionally missing from the prototype
 
 - **Tour / gigs system** — wireframed but not built. This is the most important missing piece because gigs are the spec's early-game income source.
-- **Members & skills** — no member roster, no morale, no energy effects on outcomes. Quality is random.
+- **Members & skills** — no member roster, no morale, no energy effects on outcomes. Song quality is random.
 - **Events beyond 3 sample cards** — only sync deal, blog write-up, gear breaks. Spec calls for ~50 cards by v1.
 - **Charts screen** — wireframed only.
 - **Member crises, label offers, sync licensing pipeline.**
 - **Audio, visuals, music** — none. This is a paper prototype with HTML chrome.
+
+## 8a. What the prototype now *does* have (post-v0.1)
+
+- **3 save slots** with a switcher modal. Tap the "Slot N · Y… W…" button at the top right of the nav to open it. Each slot stores an independent career; switching slots auto-saves the current one. Slots can be erased individually. Legacy single-slot saves migrate to Slot 1 on first load.
+- **Version & build timestamp** in a small footer on the Dashboard (e.g. `v0.3.0 · 2026-05-20 20:55 UTC`). Easy way to confirm which build is loaded.
+- **Scrollable Buzz feed** — fixed-height container holds up to 30 buzz items; Dashboard layout no longer shifts as events accumulate.
 
 ## 9. Roadmap (lifted from spec §10, slightly revised)
 
@@ -161,7 +189,7 @@ Paste this in a fresh conversation to bring the next session up to speed:
 
 > I'm working on a rock band management sim game for iOS. It's a fantasy career-sim — the player manages a fictional band over a 10-year career. Every decision serves two compounding numbers: **albums sold** and **fan count**.
 >
-> The project is in a local git repo at `/Users/marcboyer/Library/Application Support/Claude/local-agent-mode-sessions/.../outputs/` containing: a 12-section design spec (`rock-band-sim-spec.md`), 5 SVG wireframes, a working HTML prototype (`rock-band-sim-prototype.html`) with the Band/Studio/Albums loop running, and a Node.js playtest harness (`playtest.js`). Read `HANDOFF.md` in that folder first — it has the full context including playtest findings and balance decisions.
+> The project is on GitHub at https://github.com/marcboy/rock-band-sim and locally at `/Users/marcboyer/Documents/Claude/projects/rock-band-sim/`. It contains: a 12-section design spec (`rock-band-sim-spec.md`), 5 SVG wireframes, a working HTML prototype (`rock-band-sim-prototype.html`) at v0.3.0 with the Band/Studio/Albums loop running and 3 save slots, and a Node.js playtest harness (`playtest.js`). **Read `HANDOFF.md` first** — it has the full context including the changelog, playtest findings, and balance decisions.
 >
 > Today I want to: [pick one]
 > - Add the Tour & gigs system to the prototype (spec §5.7)
