@@ -214,6 +214,10 @@
 <script>
 "use strict";
 
+// -------- VERSION --------
+const APP_VERSION = "v0.2.0";
+const APP_BUILD = "2026-05-20 20:42 UTC";
+
 // -------- STATE --------
 const initialState = () => ({
   bandName: "Neon Coyotes",
@@ -648,6 +652,10 @@ function renderDashboard() {
   // Advance button
   c.appendChild(el("button", {class:"btn", style:"margin-top:18px", onclick: () => advanceWeek()},
     "Advance to next week ▸"));
+
+  // Version footer
+  c.appendChild(el("p", {style:"text-align:center;font-size:10px;color:#aaa;margin:18px 0 4px;letter-spacing:0.5px"},
+    `${APP_VERSION} · ${APP_BUILD}`));
 
   return c;
 }
