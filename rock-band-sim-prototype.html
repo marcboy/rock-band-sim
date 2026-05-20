@@ -151,6 +151,16 @@
   .news .sub { font-size: 11px; color: #888; }
   .news.win { border-left: 3px solid #22a06b; }
   .news.bad { border-left: 3px solid #c44; }
+  .buzz-feed {
+    max-height: 200px;
+    overflow-y: auto;
+    border-radius: 10px;
+    padding-right: 2px;
+  }
+  .buzz-feed::-webkit-scrollbar { width: 4px; }
+  .buzz-feed::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+  .buzz-feed > .news { margin-bottom: 6px; }
+  .buzz-feed > .news:last-child { margin-bottom: 0; }
   .album-card {
     display: flex; gap: 12px; padding: 12px;
     border: 1px solid #ddd; border-radius: 14px;
@@ -215,8 +225,8 @@
 "use strict";
 
 // -------- VERSION --------
-const APP_VERSION = "v0.2.1";
-const APP_BUILD = "2026-05-20 20:47 UTC";
+const APP_VERSION = "v0.2.2";
+const APP_BUILD = "2026-05-20 20:50 UTC";
 
 // -------- STATE --------
 const initialState = () => ({
@@ -635,19 +645,21 @@ function renderDashboard() {
     ));
   }
 
-  // Buzz
+  // Buzz — fixed-height scrollable feed so the Dashboard doesn't grow as buzz accumulates
   c.appendChild(el("h3", {class:"section"}, "Buzz"));
   if (S.log.length === 0) {
     c.appendChild(el("div", {class:"empty"}, "Quiet so far. Make some noise."));
   } else {
-    for (const n of S.log.slice(0, 6)) {
+    const buzzFeed = el("div", {class:"buzz-feed"});
+    for (const n of S.log) {
       const kindClass = n.kind === "win" ? "news win" : n.kind === "bad" ? "news bad" : "news";
-      c.appendChild(el("div", {class: kindClass},
+      buzzFeed.appendChild(el("div", {class: kindClass},
         el("div", {class:"when"}, n.when),
         el("div", {class:"body"}, n.body),
         n.sub ? el("div", {class:"sub"}, n.sub) : null
       ));
     }
+    c.appendChild(buzzFeed);
   }
 
   // Advance button
