@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" font-family="-apple-system, system-ui, sans-serif">
+  <rect x="1" y="1" width="388" height="842" rx="48" fill="#fff" stroke="#222" stroke-width="2"/>
+  <rect x="135" y="14" width="120" height="28" rx="14" fill="#222"/>
+  <text x="30" y="36" font-size="14" font-weight="600" fill="#222">9:41</text>
+  <text x="335" y="36" font-size="14" fill="#222">●●●●</text>
+
+  <!-- Nav -->
+  <text x="30" y="92" font-size="14" fill="#666">‹ Band</text>
+  <text x="195" y="92" font-size="17" font-weight="700" fill="#222" text-anchor="middle">Studio</text>
+
+  <!-- Current album header -->
+  <rect x="20" y="115" width="350" height="120" rx="14" fill="none" stroke="#222" stroke-width="1.5"/>
+  <rect x="34" y="129" width="92" height="92" rx="8" fill="none" stroke="#222"/>
+  <text x="78" y="180" font-size="11" fill="#888" text-anchor="middle">COVER</text>
+  <text x="140" y="148" font-size="11" fill="#888" letter-spacing="1">IN PROGRESS · LP3</text>
+  <text x="140" y="172" font-size="18" font-weight="700" fill="#222">Untitled — 4 / 10 tracks</text>
+  <rect x="140" y="186" width="216" height="8" rx="4" fill="none" stroke="#222"/>
+  <rect x="140" y="186" width="86" height="8" rx="4" fill="#222"/>
+  <text x="140" y="216" font-size="12" fill="#666">Producer: Jenna Reyes  ·  Budget $18k</text>
+
+  <!-- Tracks list -->
+  <text x="20" y="262" font-size="13" font-weight="700" fill="#222" letter-spacing="1">TRACKS</text>
+
+  <g font-size="13" fill="#222">
+    <rect x="20" y="274" width="350" height="44" rx="10" fill="none" stroke="#ddd"/>
+    <text x="34" y="293" font-weight="600">1. Midnight Drive</text>
+    <text x="34" y="310" font-size="11" fill="#888">Recorded · hook 8 / vibe 7</text>
+    <text x="356" y="300" text-anchor="end" font-size="11" fill="#22a06b">●</text>
+
+    <rect x="20" y="324" width="350" height="44" rx="10" fill="none" stroke="#ddd"/>
+    <text x="34" y="343" font-weight="600">2. Glass City</text>
+    <text x="34" y="360" font-size="11" fill="#888">Recorded · hook 9 / vibe 6</text>
+    <text x="356" y="350" text-anchor="end" font-size="11" fill="#22a06b">●</text>
+
+    <rect x="20" y="374" width="350" height="44" rx="10" fill="none" stroke="#ddd"/>
+    <text x="34" y="393" font-weight="600">3. Saltwater</text>
+    <text x="34" y="410" font-size="11" fill="#888">Recording... 60%</text>
+    <text x="356" y="400" text-anchor="end" font-size="11" fill="#d29900">◐</text>
+
+    <rect x="20" y="424" width="350" height="44" rx="10" fill="none" stroke="#ddd"/>
+    <text x="34" y="443" font-weight="600">4. Hounds</text>
+    <text x="34" y="460" font-size="11" fill="#888">Demo · hook 6 / vibe 8</text>
+    <text x="356" y="450" text-anchor="end" font-size="11" fill="#888">○</text>
+
+    <rect x="20" y="474" width="350" height="44" rx="10" fill="none" stroke="#bbb" stroke-dasharray="4 3"/>
+    <text x="34" y="497" fill="#666">+ Write new song  (-1 week · -$500)</text>
+  </g>
+
+  <!-- Album sound profile -->
+  <text x="20" y="544" font-size="13" font-weight="700" fill="#222" letter-spacing="1">ALBUM PROFILE</text>
+  <g>
+    <text x="20" y="568" font-size="12" fill="#666">Hooks</text>
+    <rect x="100" y="558" width="240" height="10" rx="5" fill="none" stroke="#222"/>
+    <rect x="100" y="558" width="170" height="10" rx="5" fill="#222"/>
+
+    <text x="20" y="592" font-size="12" fill="#666">Vibe</text>
+    <rect x="100" y="582" width="240" height="10" rx="5" fill="none" stroke="#222"/>
+    <rect x="100" y="582" width="150" height="10" rx="5" fill="#222"/>
+
+    <text x="20" y="616" font-size="12" fill="#666">Edge</text>
+    <rect x="100" y="606" width="240" height="10" rx="5" fill="none" stroke="#222"/>
+    <rect x="100" y="606" width="95" height="10" rx="5" fill="#222"/>
+  </g>
+
+  <!-- Predicted -->
+  <rect x="20" y="640" width="350" height="68" rx="12" fill="none" stroke="#bbb" stroke-dasharray="4 3"/>
+  <text x="34" y="662" font-size="11" fill="#888" letter-spacing="1">PREDICTED ON RELEASE</text>
+  <text x="34" y="685" font-size="14" font-weight="600" fill="#222">~38k first-week sales · +12k fans</text>
+  <text x="34" y="702" font-size="11" fill="#888">Confidence: medium</text>
+
+  <!-- Actions -->
+  <rect x="20" y="724" width="167" height="46" rx="23" fill="none" stroke="#222" stroke-width="1.5"/>
+  <text x="103" y="752" font-size="14" font-weight="600" fill="#222" text-anchor="middle">Master + ship</text>
+  <rect x="203" y="724" width="167" height="46" rx="23" fill="#222"/>
+  <text x="287" y="752" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">Record more</text>
+
+  <!-- Tab bar -->
+  <line x1="0" y1="784" x2="390" y2="784" stroke="#eee"/>
+  <g font-size="10" text-anchor="middle">
+    <circle cx="50" cy="805" r="8" fill="none" stroke="#888"/>
+    <text x="50" y="828" fill="#888">Band</text>
+    <circle cx="128" cy="805" r="8" fill="#222"/>
+    <text x="128" y="828" fill="#222" font-weight="600">Studio</text>
+    <circle cx="206" cy="805" r="8" fill="none" stroke="#888"/>
+    <text x="206" y="828" fill="#888">Albums</text>
+    <circle cx="284" cy="805" r="8" fill="none" stroke="#888"/>
+    <text x="284" y="828" fill="#888">Tour</text>
+    <circle cx="362" cy="805" r="8" fill="none" stroke="#888"/>
+    <text x="362" y="828" fill="#888">Charts</text>
+  </g>
+</svg>

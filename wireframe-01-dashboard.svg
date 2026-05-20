@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" font-family="-apple-system, system-ui, sans-serif">
+  <!-- Phone frame -->
+  <rect x="1" y="1" width="388" height="842" rx="48" fill="#fff" stroke="#222" stroke-width="2"/>
+  <!-- Notch -->
+  <rect x="135" y="14" width="120" height="28" rx="14" fill="#222"/>
+  <!-- Status bar -->
+  <text x="30" y="36" font-size="14" font-weight="600" fill="#222">9:41</text>
+  <text x="335" y="36" font-size="14" fill="#222">●●●●</text>
+
+  <!-- Title -->
+  <text x="30" y="90" font-size="13" fill="#888" letter-spacing="1">WEEK 47 · YEAR 2</text>
+  <text x="30" y="120" font-size="28" font-weight="700" fill="#222">Neon Coyotes</text>
+  <text x="30" y="142" font-size="14" fill="#666">Garage rock · Austin, TX</text>
+
+  <!-- KPI cards -->
+  <g>
+    <rect x="20" y="170" width="165" height="110" rx="14" fill="none" stroke="#222" stroke-width="1.5"/>
+    <text x="34" y="194" font-size="11" fill="#888" letter-spacing="1">FANS</text>
+    <text x="34" y="234" font-size="32" font-weight="700" fill="#222">48,210</text>
+    <text x="34" y="258" font-size="12" fill="#22a06b">▲ +1,820 this week</text>
+
+    <rect x="205" y="170" width="165" height="110" rx="14" fill="none" stroke="#222" stroke-width="1.5"/>
+    <text x="219" y="194" font-size="11" fill="#888" letter-spacing="1">ALBUMS SOLD</text>
+    <text x="219" y="234" font-size="32" font-weight="700" fill="#222">413K</text>
+    <text x="219" y="258" font-size="12" fill="#22a06b">▲ +4,100 this week</text>
+  </g>
+
+  <!-- Money + Energy -->
+  <g>
+    <rect x="20" y="295" width="350" height="64" rx="14" fill="none" stroke="#222" stroke-width="1.5"/>
+    <text x="34" y="318" font-size="11" fill="#888" letter-spacing="1">CASH</text>
+    <text x="34" y="345" font-size="20" font-weight="700" fill="#222">$24,580</text>
+    <text x="200" y="318" font-size="11" fill="#888" letter-spacing="1">BAND ENERGY</text>
+    <rect x="200" y="328" width="160" height="10" rx="5" fill="none" stroke="#222"/>
+    <rect x="200" y="328" width="115" height="10" rx="5" fill="#222"/>
+    <text x="200" y="354" font-size="11" fill="#666">72% — rested</text>
+  </g>
+
+  <!-- This week section -->
+  <text x="20" y="395" font-size="16" font-weight="700" fill="#222">This week</text>
+  <g>
+    <rect x="20" y="408" width="350" height="58" rx="12" fill="none" stroke="#bbb" stroke-dasharray="4 3"/>
+    <circle cx="46" cy="437" r="11" fill="none" stroke="#222" stroke-width="1.5"/>
+    <text x="68" y="432" font-size="14" font-weight="600" fill="#222">Record "Midnight Drive"</text>
+    <text x="68" y="450" font-size="12" fill="#666">Studio session · 2 of 5 days</text>
+
+    <rect x="20" y="474" width="350" height="58" rx="12" fill="none" stroke="#bbb" stroke-dasharray="4 3"/>
+    <circle cx="46" cy="503" r="11" fill="none" stroke="#222" stroke-width="1.5"/>
+    <text x="68" y="498" font-size="14" font-weight="600" fill="#222">Show @ Mohawk · Sat</text>
+    <text x="68" y="516" font-size="12" fill="#666">450 cap · $1,200 guarantee</text>
+  </g>
+
+  <!-- News / events -->
+  <text x="20" y="568" font-size="16" font-weight="700" fill="#222">Buzz</text>
+  <g>
+    <rect x="20" y="580" width="350" height="48" rx="10" fill="none" stroke="#ddd"/>
+    <text x="34" y="600" font-size="12" font-weight="600" fill="#222">Pitchfork reviewed "Glass City" — 7.4</text>
+    <text x="34" y="618" font-size="11" fill="#888">+2,400 fans · trending in indie</text>
+
+    <rect x="20" y="636" width="350" height="48" rx="10" fill="none" stroke="#ddd"/>
+    <text x="34" y="656" font-size="12" font-weight="600" fill="#222">Indie label "Goldrush" wants a meeting</text>
+    <text x="34" y="674" font-size="11" fill="#888">Tap to respond</text>
+  </g>
+
+  <!-- Advance turn button -->
+  <rect x="20" y="708" width="350" height="52" rx="26" fill="#222"/>
+  <text x="195" y="740" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">Advance to next week ▸</text>
+
+  <!-- Tab bar -->
+  <line x1="0" y1="784" x2="390" y2="784" stroke="#eee"/>
+  <g font-size="10" fill="#222" text-anchor="middle">
+    <circle cx="50" cy="805" r="8" fill="#222"/>
+    <text x="50" y="828" font-weight="600">Band</text>
+    <circle cx="128" cy="805" r="8" fill="none" stroke="#888"/>
+    <text x="128" y="828" fill="#888">Studio</text>
+    <circle cx="206" cy="805" r="8" fill="none" stroke="#888"/>
+    <text x="206" y="828" fill="#888">Albums</text>
+    <circle cx="284" cy="805" r="8" fill="none" stroke="#888"/>
+    <text x="284" y="828" fill="#888">Tour</text>
+    <circle cx="362" cy="805" r="8" fill="none" stroke="#888"/>
+    <text x="362" y="828" fill="#888">Charts</text>
+  </g>
+</svg>

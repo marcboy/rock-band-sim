@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Rock Band Sim — Prototype</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #f5f5f7;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    color: #222;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start;
+    padding: 32px 16px 80px;
+    gap: 16px;
+  }
+  .hint {
+    font-size: 12px; color: #888; text-align: center; max-width: 420px;
+  }
+  .hint kbd {
+    background: #eee; border: 1px solid #ccc; border-radius: 4px;
+    padding: 1px 5px; font-family: inherit; font-size: 11px;
+  }
+  /* Phone frame */
+  .phone {
+    width: 390px; height: 844px;
+    background: #fff;
+    border: 2px solid #222;
+    border-radius: 48px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+  }
+  .notch {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 28px; border-radius: 14px; background: #222;
+    z-index: 10;
+  }
+  .status-bar {
+    position: absolute; top: 0; left: 0; right: 0; height: 50px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 30px 0; font-size: 14px; font-weight: 600;
+    z-index: 5;
+  }
+  .nav {
+    height: 56px; padding: 0 20px; display: flex; align-items: center; justify-content: center;
+    margin-top: 44px; font-size: 17px; font-weight: 700;
+    position: relative;
+  }
+  .nav .meta {
+    position: absolute; right: 20px; font-size: 12px; color: #666; font-weight: 500;
+  }
+  .screen {
+    position: absolute; top: 100px; left: 0; right: 0; bottom: 80px;
+    overflow-y: auto; overflow-x: hidden;
+    padding: 0 20px 20px;
+  }
+  .screen::-webkit-scrollbar { width: 0; }
+  .tabbar {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 80px;
+    border-top: 1px solid #eee;
+    display: flex; justify-content: space-around; align-items: flex-start;
+    padding-top: 12px; background: #fff;
+  }
+  .tab {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    font-size: 10px; color: #888; cursor: pointer;
+    background: none; border: 0; padding: 4px 8px;
+    font-family: inherit;
+  }
+  .tab .dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 1.5px solid #888;
+  }
+  .tab.active { color: #222; font-weight: 600; }
+  .tab.active .dot { background: #222; border-color: #222; }
+  /* Cards & primitives */
+  .card {
+    border: 1.5px solid #222; border-radius: 14px;
+    padding: 14px; margin-bottom: 12px;
+  }
+  .card.soft { border: 1px solid #ddd; }
+  .card.dashed { border: 1px dashed #bbb; }
+  .label {
+    font-size: 11px; color: #888; letter-spacing: 1px; text-transform: uppercase;
+    margin: 0 0 4px;
+  }
+  .big {
+    font-size: 32px; font-weight: 700; margin: 0;
+  }
+  .delta-up { color: #22a06b; font-size: 12px; }
+  .delta-down { color: #c44; font-size: 12px; }
+  .delta-flat { color: #888; font-size: 12px; }
+  .row {
+    display: flex; gap: 10px; margin-bottom: 12px;
+  }
+  .row > * { flex: 1; }
+  .meter {
+    height: 10px; border: 1px solid #222; border-radius: 5px; overflow: hidden;
+    background: transparent;
+  }
+  .meter > div {
+    height: 100%; background: #222;
+  }
+  .btn {
+    display: block; width: 100%;
+    padding: 14px; border-radius: 26px; border: 0;
+    background: #222; color: #fff;
+    font-size: 16px; font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn:hover { background: #000; }
+  .btn:disabled { background: #ccc; cursor: not-allowed; }
+  .btn.ghost {
+    background: transparent; color: #222;
+    border: 1.5px solid #222;
+  }
+  .btn.ghost:hover { background: #f3f3f3; }
+  .btn.small { padding: 8px 14px; font-size: 13px; font-weight: 600; border-radius: 14px; width: auto; display: inline-block; }
+  .stack > * + * { margin-top: 8px; }
+  h3.section {
+    font-size: 16px; font-weight: 700;
+    margin: 18px 0 10px;
+  }
+  .track {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px;
+    margin-bottom: 6px;
+  }
+  .track .title { font-weight: 600; font-size: 13px; }
+  .track .sub { font-size: 11px; color: #888; }
+  .track .state {
+    margin-left: auto; font-size: 14px;
+  }
+  .state-recorded { color: #22a06b; }
+  .state-recording { color: #d29900; }
+  .state-demo { color: #888; }
+  .news {
+    border: 1px solid #ddd; border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 6px;
+  }
+  .news .when { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+  .news .body { font-size: 12px; font-weight: 600; color: #222; }
+  .news .sub { font-size: 11px; color: #888; }
+  .news.win { border-left: 3px solid #22a06b; }
+  .news.bad { border-left: 3px solid #c44; }
+  .album-card {
+    display: flex; gap: 12px; padding: 12px;
+    border: 1px solid #ddd; border-radius: 14px;
+    margin-bottom: 10px;
+  }
+  .album-cover {
+    width: 80px; height: 80px; border-radius: 6px;
+    border: 1px solid #222;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: #888;
+    flex-shrink: 0;
+  }
+  .album-info { flex: 1; min-width: 0; }
+  .album-title { font-size: 15px; font-weight: 700; }
+  .album-meta { font-size: 11px; color: #888; margin: 2px 0 6px; }
+  .album-stats { display: flex; gap: 16px; font-size: 11px; }
+  .album-stats .v { font-size: 15px; font-weight: 700; color: #222; }
+  .album-stats .k { color: #888; text-transform: uppercase; letter-spacing: 1px; font-size: 10px; }
+  .sparkline { margin-top: 6px; }
+  .event-modal-bg {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.4);
+    z-index: 100; display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .event-modal {
+    background: #fff; border-radius: 16px;
+    width: 100%; padding: 20px;
+  }
+  .event-modal h2 { margin: 0 0 8px; font-size: 18px; }
+  .event-modal p { font-size: 13px; color: #444; margin: 0 0 16px; }
+  .event-choices { display: flex; flex-direction: column; gap: 8px; }
+  .event-choices button {
+    padding: 12px; border: 1.5px solid #222; border-radius: 12px;
+    background: #fff; cursor: pointer; text-align: left;
+    font-family: inherit; font-size: 13px;
+  }
+  .event-choices button:hover { background: #f3f3f3; }
+  .empty { font-size: 13px; color: #888; text-align: center; padding: 32px 12px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="phone" id="phone">
+    <div class="notch"></div>
+    <div class="status-bar">
+      <span id="status-time">9:41</span>
+      <span>●●●●</span>
+    </div>
+    <div id="app"></div>
+    <div class="tabbar">
+      <button class="tab" data-tab="dashboard"><div class="dot"></div><div>Band</div></button>
+      <button class="tab" data-tab="studio"><div class="dot"></div><div>Studio</div></button>
+      <button class="tab" data-tab="albums"><div class="dot"></div><div>Albums</div></button>
+    </div>
+  </div>
+  <div class="hint">
+    Prototype: 3 tabs working (Band / Studio / Albums) · <kbd>R</kbd> resets the game · sim formulas from spec §6
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// -------- STATE --------
+const initialState = () => ({
+  bandName: "Neon Coyotes",
+  genre: "Garage rock · Austin, TX",
+  week: 1, year: 1,
+  fans: 0,
+  cash: 8000,
+  energy: 80,
+  morale: 75,
+  songs: [],            // {id, name, hook, vibe, edge, state: 'demo'|'recording'|'recorded', progress}
+  albums: [],           // {id, name, releasedWeek, releasedYear, quality, tracks:[songId], lifetimeSales, weeklySales: [{week, units}], fansAdded}
+  inProgressAlbum: null,// {name, tracks:[songIds], producer}
+  pendingTask: null,    // {type:'write_song'|'record_song', weeksLeft, target}
+  log: [],              // {week, year, body, sub, kind}
+  pendingEvent: null,
+  tab: "dashboard",
+  weeklySalesHistory: [],
+  weeklyFansHistory: [],
+  songCounter: 0,
+  albumCounter: 0,
+});
+
+let S = initialState();
+const STORAGE_KEY = "rockBandSimState_v1";
+
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch(e) {}
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) S = JSON.parse(raw);
+  } catch(e) {}
+}
+
+function reset() {
+  S = initialState();
+  pushLog("Y1 W1", "The band is starting from zero.", "Welcome to Neon Coyotes.", "neutral");
+  save();
+  render();
+}
+
+// -------- UTILITIES --------
+const rand = (a, b) => Math.random() * (b - a) + a;
+const randint = (a, b) => Math.floor(rand(a, b + 1));
+const fmt = (n) => {
+  if (n >= 1_000_000) return (n/1_000_000).toFixed(1).replace(/\.0$/,'') + "M";
+  if (n >= 10_000) return Math.round(n/1000) + "K";
+  if (n >= 1000) return (n/1000).toFixed(1).replace(/\.0$/,'') + "K";
+  return Math.round(n).toLocaleString();
+};
+const dollars = (n) => "$" + Math.round(n).toLocaleString();
+const weekLabel = () => `Y${S.year} W${S.week}`;
+
+function pushLog(when, body, sub, kind="neutral") {
+  S.log.unshift({ when, body, sub, kind });
+  if (S.log.length > 30) S.log.length = 30;
+}
+
+// Song / album generation
+const songTitles = [
+  "Midnight Drive","Glass City","Saltwater","Hounds","Bonfire","Slow Burn",
+  "Static","Coyote","Backseat","Highwire","Neon Sky","Paper Crown",
+  "Last Call","Gold Teeth","Foxglove","Razor","Quiet Year","Cold Coast",
+  "Echoes","Velvet","Cassette","Smoke Signal","Halo","Driftwood",
+  "Switchblade","Wildfire","Ocean Floor","No Map","Tall Grass","Wires",
+];
+const usedTitles = new Set();
+function nextSongTitle() {
+  for (let i = 0; i < 200; i++) {
+    const t = songTitles[randint(0, songTitles.length-1)];
+    if (!usedTitles.has(t)) { usedTitles.add(t); return t; }
+  }
+  return "Track " + (S.songCounter+1);
+}
+
+const albumWords = ["Coyote","Nights","Glass","Salt","Bonfire","Hour","City","Year","Static","Gold","Smoke","Echo","Wildfire","Ocean","Quiet","Last"];
+function nextAlbumTitle() {
+  const a = albumWords[randint(0, albumWords.length-1)];
+  const b = albumWords[randint(0, albumWords.length-1)];
+  return Math.random() < 0.5 ? `${a} ${b}` : a;
+}
+
+// -------- SIMULATION --------
+function conversionRate(quality) {
+  if (quality < 4) return 0.05;
+  if (quality < 7) return 0.15;
+  if (quality < 9) return 0.30;
+  return 0.45;
+}
+
+function releaseAlbum(album) {
+  // First-week sales = (fans * conv + discovery floor) * launchMult * seasonality
+  // Discovery floor lets a 0-fan band still get picked up by streaming/algorithms
+  const launch = rand(0.6, 2.0);
+  const seasonality = rand(0.85, 1.15);
+  const conv = conversionRate(album.quality);
+  const discoveryFloor = album.quality * 80; // q6 album → 480 base units
+  const firstWeek = Math.round((S.fans * conv + discoveryFloor) * launch * seasonality);
+  // First album gets fans from discovery too
+  if (S.albums.length === 0) S.fans += Math.round(firstWeek * 0.4);
+  album.releasedWeek = S.week;
+  album.releasedYear = S.year;
+  album.lifetimeSales = firstWeek;
+  album.weeklySales = [{week: weekIndex(), units: firstWeek}];
+  album.fansAdded = 0;
+  album.launchMultiplier = launch;
+  S.albums.unshift(album);
+
+  // Initial cash from first-week sales
+  const cashFromAlbum = firstWeek * 1.5; // self-release rate
+  S.cash += cashFromAlbum;
+
+  // News
+  const launchAdj = launch > 1.4 ? "huge launch" : launch < 0.8 ? "soft launch" : "solid launch";
+  pushLog(weekLabel(),
+    `"${album.name}" released — ${fmt(firstWeek)} first-week units`,
+    `${launchAdj} · quality ${album.quality.toFixed(1)} · ${dollars(cashFromAlbum)} earned`,
+    "win");
+
+  // A buzz event
+  if (launch > 1.5) {
+    const sites = ["Pitchfork","Stereogum","NPR Music","The Fader"];
+    const score = (album.quality + rand(-0.5, 1.0)).toFixed(1);
+    pushLog(weekLabel(),
+      `${sites[randint(0,3)]} reviewed "${album.name}" — ${score}`,
+      `+${fmt(Math.round(firstWeek*0.05))} fans · trending`,
+      "win");
+    S.fans += Math.round(firstWeek * 0.05);
+  }
+}
+
+function weekIndex() { return (S.year - 1) * 52 + S.week; }
+
+function advanceWeek() {
+  if (S.cash < -2000) {
+    pushLog(weekLabel(), "The band broke up.", "Negative cash for too long.", "bad");
+    save(); render(); return;
+  }
+
+  // Tick week
+  if (S.week >= 52) { S.week = 1; S.year += 1; }
+  else S.week += 1;
+
+  // Progress pending task
+  if (S.pendingTask) {
+    S.pendingTask.weeksLeft -= 1;
+    if (S.pendingTask.weeksLeft <= 0) {
+      finishTask(S.pendingTask);
+      S.pendingTask = null;
+    }
+  }
+
+  // Sales decay + fans from sales for each album
+  let salesThisWeek = 0;
+  let fansFromSales = 0;
+  for (const album of S.albums) {
+    if (!album.weeklySales || album.weeklySales.length === 0) continue;
+    const last = album.weeklySales[album.weeklySales.length - 1];
+    if (last.week === weekIndex()) continue; // already booked this week
+    const ageWeeks = weekIndex() - (album.releasedYear-1)*52 - album.releasedWeek;
+    // decay 15% per week, slower for higher quality
+    const decay = album.quality >= 7 ? 0.88 : 0.85;
+    const newUnits = Math.max(1, Math.round(last.units * decay));
+    album.weeklySales.push({week: weekIndex(), units: newUnits});
+    album.lifetimeSales += newUnits;
+    salesThisWeek += newUnits;
+    fansFromSales += newUnits / 6;
+    S.cash += newUnits * 1.5;
+    if (album.weeklySales.length > 52) album.weeklySales.shift();
+  }
+
+  // Weekly expenses
+  const weeklyBurn = 200;
+  S.cash -= weeklyBurn;
+
+  // Word of mouth + decay
+  const wordOfMouth = S.fans * 0.002;
+  let dormantDecay = 0;
+  const weeksSinceLastRelease = S.albums.length > 0
+    ? weekIndex() - ((S.albums[0].releasedYear-1)*52 + S.albums[0].releasedWeek)
+    : Infinity;
+  if (S.albums.length === 0 || weeksSinceLastRelease > 26) {
+    dormantDecay = S.fans * 0.005;
+  }
+
+  const fansDelta = Math.round(fansFromSales + wordOfMouth - dormantDecay);
+  S.fans = Math.max(0, S.fans + fansDelta);
+
+  S.weeklySalesHistory.push(salesThisWeek);
+  S.weeklyFansHistory.push(S.fans);
+  if (S.weeklySalesHistory.length > 52) S.weeklySalesHistory.shift();
+  if (S.weeklyFansHistory.length > 52) S.weeklyFansHistory.shift();
+
+  // Random event roll
+  maybeRollEvent();
+
+  // Energy regen
+  S.energy = Math.min(100, S.energy + 6);
+
+  save();
+  render();
+}
+
+function finishTask(task) {
+  if (task.type === "write_song") {
+    const hook = randint(3, 9);
+    const vibe = randint(3, 9);
+    const edge = randint(3, 9);
+    const song = {
+      id: ++S.songCounter,
+      name: nextSongTitle(),
+      hook, vibe, edge,
+      state: "demo",
+    };
+    S.songs.push(song);
+    pushLog(weekLabel(),
+      `Wrote a new song: "${song.name}"`,
+      `hook ${hook} · vibe ${vibe} · edge ${edge}`,
+      "neutral");
+  } else if (task.type === "record_song") {
+    const song = S.songs.find(s => s.id === task.target);
+    if (song) {
+      song.state = "recorded";
+      pushLog(weekLabel(),
+        `Finished recording "${song.name}"`,
+        `Ready for an album`,
+        "neutral");
+    }
+  }
+}
+
+// -------- ACTIONS --------
+function writeSong() {
+  if (S.pendingTask) return alert("Already working on something this week.");
+  if (S.cash < 500) return alert("Need $500 to write a song.");
+  S.cash -= 500;
+  S.pendingTask = { type: "write_song", weeksLeft: 1 };
+  pushLog(weekLabel(), "Started writing a new song", "$500 spent · 1 week", "neutral");
+  save(); render();
+}
+
+function recordSong(songId) {
+  if (S.pendingTask) return alert("Already working on something this week.");
+  if (S.cash < 500) return alert("Need $500 to record a song.");
+  const song = S.songs.find(s => s.id === songId);
+  if (!song) return;
+  S.cash -= 500;
+  song.state = "recording";
+  S.pendingTask = { type: "record_song", weeksLeft: 1, target: songId };
+  pushLog(weekLabel(), `Recording "${song.name}"`, "$500 spent · 1 week", "neutral");
+  save(); render();
+}
+
+function shipAlbum() {
+  const recorded = S.songs.filter(s => s.state === "recorded");
+  if (recorded.length < 4) return alert("Need at least 4 recorded songs.");
+  if (S.cash < 1000) return alert("Need $1,000 to master + ship.");
+  S.cash -= 1000;
+  // Quality = avg of all 3 dims across tracks
+  let total = 0;
+  for (const s of recorded) total += (s.hook + s.vibe + s.edge) / 3;
+  const quality = total / recorded.length;
+  const album = {
+    id: ++S.albumCounter,
+    name: nextAlbumTitle(),
+    quality,
+    tracks: recorded.map(s => s.id),
+    trackCount: recorded.length,
+  };
+  // Remove used songs from backlog
+  S.songs = S.songs.filter(s => s.state !== "recorded");
+  releaseAlbum(album);
+  save(); render();
+}
+
+// -------- EVENTS --------
+const EVENTS = [
+  {
+    when: s => s.fans >= 5000 && s.fans < 50000 && Math.random() < 0.05,
+    build: () => ({
+      title: "Sync license offer",
+      body: "A car commercial wants to use one of your songs. $8,000 up front, but some fans will call you sellouts.",
+      choices: [
+        { label: "Take the money ($8,000, -3% fans)", apply: s => { s.cash += 8000; s.fans = Math.round(s.fans * 0.97); pushLog(weekLabel(), "Took the sync deal", "+$8,000 · -3% fans", "neutral"); } },
+        { label: "Pass — stay credible", apply: s => { pushLog(weekLabel(), "Passed on the sync", "Reputation preserved", "neutral"); } },
+      ]
+    }),
+  },
+  {
+    when: s => s.albums.length >= 1 && Math.random() < 0.04,
+    build: () => {
+      const bump = randint(800, 3200);
+      return {
+        title: "Blog write-up",
+        body: `A local music blog ran a feature on the band.`,
+        choices: [
+          { label: `Nice. (+${fmt(bump)} fans)`, apply: s => { s.fans += bump; pushLog(weekLabel(), "Featured on a music blog", `+${fmt(bump)} fans`, "win"); } },
+        ]
+      };
+    },
+  },
+  {
+    when: s => Math.random() < 0.03,
+    build: () => ({
+      title: "Gear breaks",
+      body: "The guitarist's amp blew up. A new one costs $1,200.",
+      choices: [
+        { label: "Buy a new amp (-$1,200)", apply: s => { s.cash -= 1200; pushLog(weekLabel(), "Bought a new amp", "-$1,200", "neutral"); } },
+        { label: "Borrow one (-5 morale)", apply: s => { s.morale -= 5; pushLog(weekLabel(), "Borrowed an amp for now", "-5 morale", "neutral"); } },
+      ]
+    }),
+  },
+];
+
+function maybeRollEvent() {
+  for (const ev of EVENTS) {
+    if (ev.when(S)) {
+      S.pendingEvent = ev.build();
+      break;
+    }
+  }
+}
+
+function resolveEvent(choiceIdx) {
+  if (!S.pendingEvent) return;
+  S.pendingEvent.choices[choiceIdx].apply(S);
+  S.pendingEvent = null;
+  save(); render();
+}
+
+// -------- RENDER --------
+function el(tag, attrs={}, ...children) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (k === "html") e.innerHTML = v;
+    else e.setAttribute(k, v);
+  }
+  for (const c of children.flat()) {
+    if (c == null || c === false) continue;
+    if (typeof c === "string" || typeof c === "number") e.appendChild(document.createTextNode(c));
+    else e.appendChild(c);
+  }
+  return e;
+}
+
+function renderDashboard() {
+  const c = el("div", {class: "screen"});
+
+  // Title block
+  c.appendChild(el("div", {style: "padding-top:8px"},
+    el("p", {class:"label", style:"margin-bottom:2px"}, `WEEK ${S.week} · YEAR ${S.year}`),
+    el("h1", {style:"margin:0;font-size:28px;font-weight:700"}, S.bandName),
+    el("p", {style:"margin:4px 0 0;font-size:13px;color:#666"}, S.genre)
+  ));
+
+  // KPI cards
+  const fansDelta = S.weeklyFansHistory.length >= 2
+    ? S.weeklyFansHistory.at(-1) - S.weeklyFansHistory.at(-2) : 0;
+  const salesThisWeek = S.weeklySalesHistory.length ? S.weeklySalesHistory.at(-1) : 0;
+  const lifetimeSales = S.albums.reduce((a, b) => a + b.lifetimeSales, 0);
+
+  c.appendChild(el("div", {class:"row", style:"margin-top:16px"},
+    el("div", {class:"card"},
+      el("p", {class:"label"}, "Fans"),
+      el("p", {class:"big"}, fmt(S.fans)),
+      el("p", {class: fansDelta >= 0 ? "delta-up" : "delta-down"},
+        `${fansDelta >= 0 ? "▲" : "▼"} ${fmt(Math.abs(fansDelta))} this week`)
+    ),
+    el("div", {class:"card"},
+      el("p", {class:"label"}, "Albums sold"),
+      el("p", {class:"big"}, fmt(lifetimeSales)),
+      el("p", {class: salesThisWeek > 0 ? "delta-up" : "delta-flat"},
+        salesThisWeek > 0 ? `▲ ${fmt(salesThisWeek)} this week` : "— no releases yet")
+    )
+  ));
+
+  // Cash + energy
+  c.appendChild(el("div", {class:"card", style:"display:flex;gap:20px;align-items:center"},
+    el("div", {style:"flex:1"},
+      el("p", {class:"label"}, "Cash"),
+      el("p", {style:"font-size:20px;font-weight:700;margin:0"},
+        S.cash < 0 ? el("span", {style:"color:#c44"}, dollars(S.cash)) : dollars(S.cash))
+    ),
+    el("div", {style:"flex:1"},
+      el("p", {class:"label"}, "Band energy"),
+      el("div", {class:"meter"}, el("div", {style: `width:${S.energy}%`})),
+      el("p", {style:"font-size:11px;color:#666;margin:6px 0 0"}, `${S.energy}% — ${S.energy>70?"rested":S.energy>40?"tired":"burnt out"}`)
+    )
+  ));
+
+  // This week
+  c.appendChild(el("h3", {class:"section"}, "This week"));
+  if (S.pendingTask) {
+    const t = S.pendingTask;
+    const desc = t.type === "write_song"
+      ? `Writing a new song · ${t.weeksLeft} week${t.weeksLeft===1?"":"s"} left`
+      : `Recording a song · ${t.weeksLeft} week${t.weeksLeft===1?"":"s"} left`;
+    c.appendChild(el("div", {class:"card dashed"},
+      el("p", {style:"font-size:13px;font-weight:600;margin:0"}, desc)
+    ));
+  } else if (S.songs.length === 0 && S.albums.length === 0) {
+    c.appendChild(el("div", {class:"card dashed"},
+      el("p", {style:"font-size:13px;margin:0;color:#666"},
+        "Nothing planned. Head to the Studio to write a song.")
+    ));
+  } else {
+    const recorded = S.songs.filter(s => s.state === "recorded").length;
+    c.appendChild(el("div", {class:"card dashed"},
+      el("p", {style:"font-size:13px;margin:0;color:#666"},
+        `${S.songs.length} songs in backlog · ${recorded} ready to ship as album`)
+    ));
+  }
+
+  // Buzz
+  c.appendChild(el("h3", {class:"section"}, "Buzz"));
+  if (S.log.length === 0) {
+    c.appendChild(el("div", {class:"empty"}, "Quiet so far. Make some noise."));
+  } else {
+    for (const n of S.log.slice(0, 6)) {
+      const kindClass = n.kind === "win" ? "news win" : n.kind === "bad" ? "news bad" : "news";
+      c.appendChild(el("div", {class: kindClass},
+        el("div", {class:"when"}, n.when),
+        el("div", {class:"body"}, n.body),
+        n.sub ? el("div", {class:"sub"}, n.sub) : null
+      ));
+    }
+  }
+
+  // Advance button
+  c.appendChild(el("button", {class:"btn", style:"margin-top:18px", onclick: () => advanceWeek()},
+    "Advance to next week ▸"));
+
+  return c;
+}
+
+function renderStudio() {
+  const c = el("div", {class: "screen"});
+
+  // Header
+  c.appendChild(el("div", {style: "padding-top:8px"},
+    el("h1", {style:"margin:0;font-size:24px;font-weight:700"}, "Studio"),
+    el("p", {style:"margin:4px 0 0;font-size:12px;color:#888"},
+      `${S.songs.length} songs in backlog · ${S.songs.filter(s=>s.state==='recorded').length} recorded`)
+  ));
+
+  // Write song action
+  c.appendChild(el("h3", {class:"section"}, "Write & record"));
+  c.appendChild(el("div", {class:"card dashed", style:"display:flex;justify-content:space-between;align-items:center"},
+    el("div", {},
+      el("p", {style:"font-size:13px;font-weight:600;margin:0"}, "Write a new song"),
+      el("p", {style:"font-size:11px;color:#888;margin:2px 0 0"}, "1 week · $500")
+    ),
+    el("button", {class:"btn small", onclick: writeSong, disabled: !!S.pendingTask || S.cash < 500}, "Write")
+  ));
+
+  // Songs list
+  if (S.songs.length === 0) {
+    c.appendChild(el("div", {class:"empty"}, "No songs yet. Write one to get started."));
+  } else {
+    c.appendChild(el("h3", {class:"section"}, "Backlog"));
+    for (const s of S.songs) {
+      const stateSym = s.state === "recorded" ? "● recorded" : s.state === "recording" ? "◐ recording" : "○ demo";
+      const stateClass = s.state === "recorded" ? "state-recorded" : s.state === "recording" ? "state-recording" : "state-demo";
+      c.appendChild(el("div", {class:"track"},
+        el("div", {style:"flex:1;min-width:0"},
+          el("div", {class:"title"}, s.name),
+          el("div", {class:"sub"}, `hook ${s.hook} · vibe ${s.vibe} · edge ${s.edge}`)
+        ),
+        el("div", {class: "state " + stateClass}, stateSym),
+        s.state === "demo"
+          ? el("button", {class:"btn small ghost", onclick: () => recordSong(s.id), disabled: !!S.pendingTask || S.cash < 500}, "Record")
+          : null
+      ));
+    }
+  }
+
+  // Ship album
+  const recorded = S.songs.filter(s => s.state === "recorded");
+  c.appendChild(el("h3", {class:"section"}, "Ship an album"));
+  if (recorded.length === 0) {
+    c.appendChild(el("div", {class:"empty"}, "Record at least 4 songs to ship an album."));
+  } else {
+    const quality = recorded.reduce((a, s) => a + (s.hook + s.vibe + s.edge)/3, 0) / recorded.length;
+    const conv = conversionRate(quality);
+    const estimated = Math.round(S.fans * conv * 1.0 * 1.0);
+    c.appendChild(el("div", {class:"card"},
+      el("p", {class:"label"}, "Predicted on release"),
+      el("p", {style:"font-size:14px;font-weight:600;margin:0 0 4px"},
+        `~${fmt(estimated)} first-week sales`),
+      el("p", {style:"font-size:11px;color:#888;margin:0"},
+        `Quality ${quality.toFixed(1)} · ${recorded.length} tracks · launch multiplier rolled on release`),
+      el("button", {class:"btn", style:"margin-top:12px",
+                    onclick: shipAlbum, disabled: recorded.length < 4 || S.cash < 1000},
+        recorded.length < 4 ? `Need ${4 - recorded.length} more tracks` : "Master + ship ($1,000)")
+    ));
+  }
+
+  return c;
+}
+
+function renderAlbums() {
+  const c = el("div", {class:"screen"});
+  c.appendChild(el("div", {style: "padding-top:8px"},
+    el("h1", {style:"margin:0;font-size:24px;font-weight:700"}, "Discography")
+  ));
+
+  const lifetime = S.albums.reduce((a,b) => a + b.lifetimeSales, 0);
+  const goldThreshold = 500_000;
+  const platThreshold = 1_000_000;
+  const goldCount = S.albums.filter(a => a.lifetimeSales >= goldThreshold).length;
+  const platCount = S.albums.filter(a => a.lifetimeSales >= platThreshold).length;
+
+  // For "distance to next" use the top-selling album that's not yet at threshold
+  let nextLabel = "";
+  const top = [...S.albums].sort((a,b) => b.lifetimeSales - a.lifetimeSales)[0];
+  if (top) {
+    if (top.lifetimeSales < goldThreshold) {
+      nextLabel = `${fmt(goldThreshold - top.lifetimeSales)} from Gold`;
+    } else if (top.lifetimeSales < platThreshold) {
+      nextLabel = `${fmt(platThreshold - top.lifetimeSales)} from Platinum`;
+    } else {
+      nextLabel = "Platinum achieved";
+    }
+  }
+
+  c.appendChild(el("div", {class:"card", style:"display:flex;gap:20px;margin-top:14px"},
+    el("div", {style:"flex:1"},
+      el("p", {class:"label"}, "Lifetime sold"),
+      el("p", {style:"font-size:24px;font-weight:700;margin:0"}, fmt(lifetime))
+    ),
+    el("div", {style:"flex:1"},
+      el("p", {class:"label"}, "Certifications"),
+      el("p", {style:"font-size:13px;font-weight:600;margin:0"}, `${goldCount}× Gold · ${platCount}× Platinum`),
+      el("p", {style:"font-size:11px;color:#888;margin:2px 0 0"}, nextLabel)
+    )
+  ));
+
+  if (S.albums.length === 0) {
+    c.appendChild(el("div", {class:"empty"},
+      "No releases yet. Write 6 songs, record them, then ship in the Studio."));
+  } else {
+    for (const a of S.albums) {
+      // sparkline from weeklySales
+      const series = a.weeklySales.slice(-12);
+      const maxU = Math.max(...series.map(p => p.units), 1);
+      const w = 200, h = 30;
+      const points = series.map((p, i) => {
+        const x = (i / Math.max(series.length - 1, 1)) * w;
+        const y = h - (p.units / maxU) * h;
+        return `${x},${y}`;
+      }).join(" ");
+      const sparkSvg = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="sparkline">
+        <polyline points="${points}" fill="none" stroke="#222" stroke-width="1.5"/>
+      </svg>`;
+
+      const ageWeeks = weekIndex() - ((a.releasedYear-1)*52 + a.releasedWeek);
+
+      c.appendChild(el("div", {class:"album-card"},
+        el("div", {class:"album-cover"}, "LP"+a.id),
+        el("div", {class:"album-info"},
+          el("div", {class:"album-title"}, a.name),
+          el("div", {class:"album-meta"},
+            `Released Y${a.releasedYear} W${a.releasedWeek} · ${ageWeeks} week${ageWeeks===1?"":"s"} ago · quality ${a.quality.toFixed(1)}`),
+          el("div", {class:"album-stats"},
+            el("div", {},
+              el("div", {class:"k"}, "Sold"),
+              el("div", {class:"v"}, fmt(a.lifetimeSales))
+            ),
+            el("div", {},
+              el("div", {class:"k"}, "Tracks"),
+              el("div", {class:"v"}, a.trackCount)
+            ),
+          ),
+          el("div", {html: sparkSvg})
+        )
+      ));
+    }
+  }
+
+  return c;
+}
+
+function renderEventModal() {
+  if (!S.pendingEvent) return null;
+  const ev = S.pendingEvent;
+  return el("div", {class:"event-modal-bg"},
+    el("div", {class:"event-modal"},
+      el("h2", {}, ev.title),
+      el("p", {}, ev.body),
+      el("div", {class:"event-choices"},
+        ...ev.choices.map((ch, i) =>
+          el("button", {onclick: () => resolveEvent(i)}, ch.label)
+        )
+      )
+    )
+  );
+}
+
+function render() {
+  const app = document.getElementById("app");
+  app.innerHTML = "";
+  // Nav
+  const titles = { dashboard: "Band", studio: "Studio", albums: "Albums" };
+  app.appendChild(el("div", {class:"nav"}, titles[S.tab],
+    el("span", {class:"meta"}, `${weekLabel()}`)));
+  // Screen
+  let screen;
+  if (S.tab === "dashboard") screen = renderDashboard();
+  else if (S.tab === "studio") screen = renderStudio();
+  else screen = renderAlbums();
+  app.appendChild(screen);
+
+  // Event modal
+  const modal = renderEventModal();
+  if (modal) app.appendChild(modal);
+
+  // Update tab states
+  document.querySelectorAll(".tab").forEach(t => {
+    t.classList.toggle("active", t.dataset.tab === S.tab);
+  });
+}
+
+function switchTab(name) {
+  S.tab = name;
+  render();
+}
+
+// -------- BOOT --------
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => switchTab(t.dataset.tab));
+});
+window.addEventListener("keydown", (e) => {
+  if (e.key.toLowerCase() === "r") { if (confirm("Reset the game?")) reset(); }
+  if (e.key === " " && S.tab === "dashboard") { e.preventDefault(); advanceWeek(); }
+});
+
+load();
+if (S.log.length === 0) {
+  pushLog("Y1 W1", "The band is starting from zero.", "Welcome to Neon Coyotes.", "neutral");
+}
+render();
+
+// Expose for headless testing
+window.__SIM__ = { S, advanceWeek, writeSong, recordSong, shipAlbum, reset, render };
+</script>
+</body>
+</html>

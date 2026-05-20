@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" font-family="-apple-system, system-ui, sans-serif">
+  <rect x="1" y="1" width="388" height="842" rx="48" fill="#fff" stroke="#222" stroke-width="2"/>
+  <rect x="135" y="14" width="120" height="28" rx="14" fill="#222"/>
+  <text x="30" y="36" font-size="14" font-weight="600" fill="#222">9:41</text>
+  <text x="335" y="36" font-size="14" fill="#222">●●●●</text>
+
+  <text x="195" y="92" font-size="17" font-weight="700" fill="#222" text-anchor="middle">Discography</text>
+
+  <!-- Totals -->
+  <rect x="20" y="115" width="350" height="76" rx="14" fill="none" stroke="#222" stroke-width="1.5"/>
+  <text x="34" y="138" font-size="11" fill="#888" letter-spacing="1">LIFETIME ALBUMS SOLD</text>
+  <text x="34" y="172" font-size="28" font-weight="700" fill="#222">412,800</text>
+  <text x="200" y="138" font-size="11" fill="#888" letter-spacing="1">CERTIFICATIONS</text>
+  <text x="200" y="166" font-size="14" font-weight="700" fill="#222">0× Gold · 0× Platinum</text>
+  <text x="200" y="184" font-size="11" fill="#666">87k from Gold</text>
+
+  <!-- Filter bar -->
+  <g font-size="12" fill="#666">
+    <rect x="20" y="206" width="60" height="28" rx="14" fill="#222"/>
+    <text x="50" y="225" fill="#fff" font-weight="600" text-anchor="middle">All</text>
+    <rect x="86" y="206" width="60" height="28" rx="14" fill="none" stroke="#bbb"/>
+    <text x="116" y="225" text-anchor="middle">LP</text>
+    <rect x="152" y="206" width="60" height="28" rx="14" fill="none" stroke="#bbb"/>
+    <text x="182" y="225" text-anchor="middle">EP</text>
+    <rect x="218" y="206" width="80" height="28" rx="14" fill="none" stroke="#bbb"/>
+    <text x="258" y="225" text-anchor="middle">Singles</text>
+  </g>
+
+  <!-- Album row template -->
+  <g>
+    <rect x="20" y="248" width="350" height="120" rx="14" fill="none" stroke="#ddd"/>
+    <rect x="34" y="262" width="92" height="92" rx="6" fill="none" stroke="#222"/>
+    <text x="80" y="313" font-size="10" fill="#888" text-anchor="middle">LP2</text>
+    <text x="140" y="280" font-size="15" font-weight="700" fill="#222">Glass City</text>
+    <text x="140" y="298" font-size="11" fill="#888">Released Y2 W12 · 35 weeks ago</text>
+
+    <text x="140" y="324" font-size="11" fill="#888" letter-spacing="1">SOLD</text>
+    <text x="140" y="346" font-size="17" font-weight="700" fill="#222">186,200</text>
+
+    <text x="240" y="324" font-size="11" fill="#888" letter-spacing="1">FANS ADDED</text>
+    <text x="240" y="346" font-size="17" font-weight="700" fill="#222">+34k</text>
+
+    <!-- sparkline -->
+    <polyline points="140,358 160,355 180,348 200,344 220,346 240,350 260,354 280,358 300,362 320,364 340,366" fill="none" stroke="#222" stroke-width="1.5"/>
+  </g>
+
+  <g>
+    <rect x="20" y="380" width="350" height="120" rx="14" fill="none" stroke="#ddd"/>
+    <rect x="34" y="394" width="92" height="92" rx="6" fill="none" stroke="#222"/>
+    <text x="80" y="445" font-size="10" fill="#888" text-anchor="middle">EP1</text>
+    <text x="140" y="412" font-size="15" font-weight="700" fill="#222">Bonfire Sessions</text>
+    <text x="140" y="430" font-size="11" fill="#888">Released Y1 W34 · 65 weeks ago</text>
+
+    <text x="140" y="456" font-size="11" fill="#888" letter-spacing="1">SOLD</text>
+    <text x="140" y="478" font-size="17" font-weight="700" fill="#222">78,400</text>
+
+    <text x="240" y="456" font-size="11" fill="#888" letter-spacing="1">FANS ADDED</text>
+    <text x="240" y="478" font-size="17" font-weight="700" fill="#222">+11k</text>
+
+    <polyline points="140,490 160,486 180,484 200,486 220,488 240,490 260,491 280,492 300,492 320,493 340,493" fill="none" stroke="#888" stroke-width="1.5"/>
+  </g>
+
+  <g>
+    <rect x="20" y="512" width="350" height="120" rx="14" fill="none" stroke="#ddd"/>
+    <rect x="34" y="526" width="92" height="92" rx="6" fill="none" stroke="#222"/>
+    <text x="80" y="577" font-size="10" fill="#888" text-anchor="middle">LP1</text>
+    <text x="140" y="544" font-size="15" font-weight="700" fill="#222">Neon Coyotes</text>
+    <text x="140" y="562" font-size="11" fill="#888">Released Y1 W6 · 93 weeks ago</text>
+
+    <text x="140" y="588" font-size="11" fill="#888" letter-spacing="1">SOLD</text>
+    <text x="140" y="610" font-size="17" font-weight="700" fill="#222">148,200</text>
+
+    <text x="240" y="588" font-size="11" fill="#888" letter-spacing="1">FANS ADDED</text>
+    <text x="240" y="610" font-size="17" font-weight="700" fill="#222">+22k</text>
+
+    <polyline points="140,622 160,612 180,608 200,612 220,616 240,618 260,620 280,621 300,622 320,622 340,623" fill="none" stroke="#888" stroke-width="1.5"/>
+  </g>
+
+  <!-- In-progress callout -->
+  <rect x="20" y="644" width="350" height="64" rx="14" fill="none" stroke="#222" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="34" y="666" font-size="11" fill="#888" letter-spacing="1">UPCOMING · LP3</text>
+  <text x="34" y="688" font-size="14" font-weight="700" fill="#222">Untitled — 4 / 10 tracks recorded</text>
+  <text x="34" y="704" font-size="11" fill="#666">Go to Studio →</text>
+
+  <!-- Tab bar -->
+  <line x1="0" y1="784" x2="390" y2="784" stroke="#eee"/>
+  <g font-size="10" text-anchor="middle">
+    <circle cx="50" cy="805" r="8" fill="none" stroke="#888"/>
+    <text x="50" y="828" fill="#888">Band</text>
+    <circle cx="128" cy="805" r="8" fill="none" stroke="#888"/>
+    <text x="128" y="828" fill="#888">Studio</text>
+    <circle cx="206" cy="805" r="8" fill="#222"/>
+    <text x="206" y="828" fill="#222" font-weight="600">Albums</text>
+    <circle cx="284" cy="805" r="8" fill="none" stroke="#888"/>
+    <text x="284" y="828" fill="#888">Tour</text>
+    <circle cx="362" cy="805" r="8" fill="none" stroke="#888"/>
+    <text x="362" y="828" fill="#888">Charts</text>
+  </g>
+</svg>
