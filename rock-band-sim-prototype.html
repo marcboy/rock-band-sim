@@ -199,6 +199,40 @@
   }
   .event-choices button:hover { background: #f3f3f3; }
   .empty { font-size: 13px; color: #888; text-align: center; padding: 32px 12px; }
+  /* Nav button (saves trigger) */
+  .nav .meta.meta-btn {
+    background: none; border: 1px solid #ddd; border-radius: 12px;
+    padding: 4px 10px; cursor: pointer; font-family: inherit;
+    font-size: 11px; color: #444; font-weight: 600;
+  }
+  .nav .meta.meta-btn:hover { background: #f3f3f3; border-color: #bbb; }
+  /* Saves modal */
+  .saves-modal { max-height: 90%; overflow-y: auto; }
+  .slot-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .slot-card {
+    border: 1.5px solid #ddd; border-radius: 12px; padding: 12px;
+  }
+  .slot-card.active { border-color: #222; }
+  .slot-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+  }
+  .slot-num {
+    font-size: 11px; color: #888; letter-spacing: 1px; text-transform: uppercase;
+    font-weight: 600;
+  }
+  .slot-badge {
+    font-size: 10px; padding: 2px 6px; border-radius: 8px;
+    background: #222; color: #fff; font-weight: 600;
+  }
+  .slot-body { margin-bottom: 10px; }
+  .slot-title { font-size: 15px; font-weight: 700; color: #222; }
+  .slot-meta { font-size: 11px; color: #888; margin-top: 2px; }
+  .slot-empty .slot-title { color: #aaa; }
+  .slot-stats {
+    display: flex; gap: 12px; margin-top: 6px; font-size: 11px; color: #444;
+  }
+  .slot-actions { display: flex; gap: 8px; }
+  .slot-actions .btn.small { flex: 1; }
 </style>
 </head>
 <body>
@@ -225,8 +259,8 @@
 "use strict";
 
 // -------- VERSION --------
-const APP_VERSION = "v0.2.2";
-const APP_BUILD = "2026-05-20 20:50 UTC";
+const APP_VERSION = "v0.3.0";
+const APP_BUILD = "2026-05-20 20:55 UTC";
 
 // -------- STATE --------
 const initialState = () => ({
@@ -251,16 +285,97 @@ const initialState = () => ({
 });
 
 let S = initialState();
-const STORAGE_KEY = "rockBandSimState_v1";
+
+// -------- SAVE SLOTS --------
+const LEGACY_KEY = "rockBandSimState_v1";
+const ACTIVE_SLOT_KEY = "rockBandSimActiveSlot_v1";
+const SLOT_PREFIX = "rockBandSimSlot_v1_";
+const SLOT_IDS = [1, 2, 3];
+let activeSlot = 1;
+let savesModalOpen = false;
+
+const slotKey = (n) => SLOT_PREFIX + n;
+
+function getActiveSlot() {
+  try {
+    const s = parseInt(localStorage.getItem(ACTIVE_SLOT_KEY), 10);
+    return SLOT_IDS.includes(s) ? s : 1;
+  } catch (e) { return 1; }
+}
+
+function migrateLegacy() {
+  try {
+    const old = localStorage.getItem(LEGACY_KEY);
+    if (old && !localStorage.getItem(slotKey(1))) {
+      localStorage.setItem(slotKey(1), old);
+    }
+    if (old) localStorage.removeItem(LEGACY_KEY);
+  } catch(e) {}
+}
+
+function peekSlot(n) {
+  try {
+    const raw = localStorage.getItem(slotKey(n));
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return {
+      bandName: data.bandName || "Unnamed band",
+      week: data.week || 1,
+      year: data.year || 1,
+      fans: data.fans || 0,
+      cash: data.cash || 0,
+      lifetimeSales: (data.albums || []).reduce((a, b) => a + (b.lifetimeSales || 0), 0),
+      albumCount: (data.albums || []).length,
+    };
+  } catch (e) { return null; }
+}
 
 function save() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch(e) {}
+  try {
+    localStorage.setItem(slotKey(activeSlot), JSON.stringify(S));
+    localStorage.setItem(ACTIVE_SLOT_KEY, String(activeSlot));
+  } catch(e) {}
 }
+
 function load() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    migrateLegacy();
+    activeSlot = getActiveSlot();
+    const raw = localStorage.getItem(slotKey(activeSlot));
     if (raw) S = JSON.parse(raw);
   } catch(e) {}
+}
+
+function loadSlot(n) {
+  // Commit current state to its slot before switching
+  save();
+  activeSlot = n;
+  try { localStorage.setItem(ACTIVE_SLOT_KEY, String(n)); } catch(e) {}
+  const raw = localStorage.getItem(slotKey(n));
+  if (raw) {
+    try {
+      S = JSON.parse(raw);
+      pushLog(weekLabel(), `Loaded Slot ${n}`, `${S.bandName}`, "neutral");
+    } catch (e) {
+      S = initialState();
+    }
+  } else {
+    S = initialState();
+    pushLog("Y1 W1", `New game in Slot ${n}`, "The band is starting from zero.", "neutral");
+  }
+  savesModalOpen = false;
+  save();
+  render();
+}
+
+function deleteSlot(n) {
+  if (!confirm(`Erase Slot ${n}? This can't be undone.`)) return;
+  try { localStorage.removeItem(slotKey(n)); } catch(e) {}
+  if (n === activeSlot) {
+    S = initialState();
+    save();
+  }
+  render();
 }
 
 function reset() {
@@ -836,13 +951,72 @@ function renderEventModal() {
   );
 }
 
+function renderSavesModal() {
+  if (!savesModalOpen) return null;
+
+  const slotCards = SLOT_IDS.map(n => {
+    const data = peekSlot(n);
+    const isActive = n === activeSlot;
+    const card = el("div", {class: "slot-card" + (isActive ? " active" : "")});
+
+    // Header row
+    card.appendChild(el("div", {class:"slot-header"},
+      el("span", {class:"slot-num"}, `Slot ${n}`),
+      isActive ? el("span", {class:"slot-badge"}, "Active") : null
+    ));
+
+    // Body
+    if (data) {
+      card.appendChild(el("div", {class:"slot-body"},
+        el("div", {class:"slot-title"}, data.bandName),
+        el("div", {class:"slot-meta"},
+          `Y${data.year} W${data.week} · ${data.albumCount} album${data.albumCount===1?"":"s"}`),
+        el("div", {class:"slot-stats"},
+          el("span", {}, `${fmt(data.fans)} fans`),
+          el("span", {}, `${fmt(data.lifetimeSales)} sold`),
+          el("span", {}, dollars(data.cash))
+        )
+      ));
+      card.appendChild(el("div", {class:"slot-actions"},
+        el("button", {class:"btn small", onclick: () => loadSlot(n)},
+          isActive ? "Resume" : "Switch to"),
+        el("button", {class:"btn small ghost", onclick: () => deleteSlot(n)}, "Erase")
+      ));
+    } else {
+      card.appendChild(el("div", {class:"slot-body slot-empty"},
+        el("div", {class:"slot-title"}, "Empty"),
+        el("div", {class:"slot-meta"}, "No save data")
+      ));
+      card.appendChild(el("div", {class:"slot-actions"},
+        el("button", {class:"btn small", onclick: () => loadSlot(n)}, "Start new game")
+      ));
+    }
+
+    return card;
+  });
+
+  return el("div", {class:"event-modal-bg", onclick: (e) => {
+    if (e.target.classList.contains("event-modal-bg")) { savesModalOpen = false; render(); }
+  }},
+    el("div", {class:"event-modal saves-modal"},
+      el("h2", {}, "Save slots"),
+      el("p", {}, "Switch between three independent careers. Progress saves automatically."),
+      el("div", {class:"slot-list"}, ...slotCards),
+      el("button", {class:"btn ghost", style:"margin-top:10px",
+        onclick: () => { savesModalOpen = false; render(); }}, "Close")
+    )
+  );
+}
+
 function render() {
   const app = document.getElementById("app");
   app.innerHTML = "";
   // Nav
   const titles = { dashboard: "Band", studio: "Studio", albums: "Albums" };
   app.appendChild(el("div", {class:"nav"}, titles[S.tab],
-    el("span", {class:"meta"}, `${weekLabel()}`)));
+    el("button", {class:"meta meta-btn",
+      onclick: () => { savesModalOpen = true; render(); }},
+      `Slot ${activeSlot} · ${weekLabel()}`)));
   // Screen
   let screen;
   if (S.tab === "dashboard") screen = renderDashboard();
@@ -853,6 +1027,10 @@ function render() {
   // Event modal
   const modal = renderEventModal();
   if (modal) app.appendChild(modal);
+
+  // Saves modal
+  const saves = renderSavesModal();
+  if (saves) app.appendChild(saves);
 
   // Update tab states
   document.querySelectorAll(".tab").forEach(t => {
