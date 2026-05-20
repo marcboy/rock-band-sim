@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Rock Band Sim — a turn-based iOS career sim</title>
+<meta name="description" content="A turn-based career-sim where you manage a fictional rock band over a 10-year career. Every choice nudges two compounding numbers: albums sold and fan count."/>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #fafafa;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    color: #222;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.55;
+  }
+  .wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 64px 24px 80px;
+  }
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #888;
+    margin: 0 0 12px;
+  }
+  h1 {
+    font-size: 40px;
+    line-height: 1.1;
+    font-weight: 700;
+    margin: 0 0 16px;
+  }
+  .lead {
+    font-size: 17px;
+    color: #444;
+    margin: 0 0 32px;
+  }
+  .lead b { color: #222; }
+  .cta {
+    display: inline-block;
+    background: #222;
+    color: #fff;
+    padding: 14px 22px;
+    border-radius: 28px;
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: none;
+    margin: 8px 8px 8px 0;
+  }
+  .cta:hover { background: #000; }
+  .cta.ghost {
+    background: transparent;
+    color: #222;
+    border: 1.5px solid #222;
+  }
+  .cta.ghost:hover { background: #f1f1f1; }
+  h2 {
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #888;
+    margin: 40px 0 14px;
+    font-weight: 600;
+  }
+  .files {
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden;
+  }
+  .files a {
+    display: flex;
+    padding: 14px 18px;
+    border-bottom: 1px solid #eee;
+    text-decoration: none;
+    color: #222;
+    font-size: 14px;
+    gap: 14px;
+    align-items: center;
+  }
+  .files a:last-child { border-bottom: 0; }
+  .files a:hover { background: #fafafa; }
+  .files .name { font-weight: 600; flex-shrink: 0; min-width: 130px; }
+  .files .desc { color: #666; font-size: 13px; }
+  .features {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 14px;
+  }
+  .feature {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .feature h3 {
+    font-size: 14px;
+    margin: 0 0 6px;
+    font-weight: 700;
+  }
+  .feature p {
+    margin: 0;
+    font-size: 13px;
+    color: #555;
+  }
+  @media (max-width: 540px) {
+    .features { grid-template-columns: 1fr; }
+    h1 { font-size: 32px; }
+    .files .name { min-width: 0; }
+    .files a { flex-direction: column; align-items: flex-start; gap: 4px; }
+  }
+  .footer {
+    margin-top: 56px;
+    padding-top: 22px;
+    border-top: 1px solid #eee;
+    font-size: 12px;
+    color: #888;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .footer a { color: #888; text-decoration: underline; }
+  .pill {
+    display: inline-block;
+    background: #f1f1f1;
+    color: #444;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 8px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">a turn-based iOS career sim · prototype <span class="pill">v0.3.0</span></p>
+  <h1>Rock Band Sim</h1>
+  <p class="lead">
+    Manage a fictional rock band over a 10-year career. Write songs, record albums,
+    book gigs, and watch every choice nudge two compounding numbers: <b>albums sold</b>
+    and <b>fan count</b>. The loop compounds — or stalls, and you have to figure out why.
+  </p>
+
+  <a href="rock-band-sim-prototype.html" class="cta">Open the prototype ▸</a>
+  <a href="rock-band-sim-spec.md" class="cta ghost">Read the design spec</a>
+
+  <h2>What's playable now</h2>
+  <div class="features">
+    <div class="feature">
+      <h3>Write &amp; record</h3>
+      <p>Build a song backlog, record demos, ship albums when you have 4+ tracks. Quality drives first-week sales.</p>
+    </div>
+    <div class="feature">
+      <h3>The compounding loop</h3>
+      <p>Sales feed fans. Fans feed bigger first-week sales on the next album. Cash from royalties funds the next session.</p>
+    </div>
+    <div class="feature">
+      <h3>3 save slots</h3>
+      <p>Run three independent careers in parallel. State persists in your browser between visits.</p>
+    </div>
+    <div class="feature">
+      <h3>Live events</h3>
+      <p>Sync deals, blog write-ups, gear failures — small choice cards that nudge the trajectory.</p>
+    </div>
+  </div>
+
+  <h2>Project files</h2>
+  <div class="files">
+    <a href="rock-band-sim-prototype.html">
+      <span class="name">Prototype</span>
+      <span class="desc">Single-file HTML game with the Band / Studio / Albums loop running</span>
+    </a>
+    <a href="rock-band-sim-spec.md">
+      <span class="name">Design spec</span>
+      <span class="desc">12-section design doc — concept, systems, formulas, roadmap</span>
+    </a>
+    <a href="HANDOFF.md">
+      <span class="name">Handoff doc</span>
+      <span class="desc">Project context for resuming work in a new session</span>
+    </a>
+    <a href="README.md">
+      <span class="name">README</span>
+      <span class="desc">Repo overview</span>
+    </a>
+    <a href="wireframe-01-dashboard.svg">
+      <span class="name">Wireframes</span>
+      <span class="desc">Dashboard · Studio · Albums · Tour · Charts</span>
+    </a>
+    <a href="playtest.js">
+      <span class="name">Playtest harness</span>
+      <span class="desc">Headless Node.js sim that runs an AI player for 100 weeks</span>
+    </a>
+  </div>
+
+  <div class="footer">
+    <span>Built May 2026 · <a href="https://github.com/marcboy/rock-band-sim">View source on GitHub</a></span>
+    <span>Best viewed on a phone-sized window — the prototype is designed for iOS.</span>
+  </div>
+
+</div>
+</body>
+</html>
