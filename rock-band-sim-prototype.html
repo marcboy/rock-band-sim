@@ -215,8 +215,8 @@
 "use strict";
 
 // -------- VERSION --------
-const APP_VERSION = "v0.2.0";
-const APP_BUILD = "2026-05-20 20:42 UTC";
+const APP_VERSION = "v0.2.1";
+const APP_BUILD = "2026-05-20 20:47 UTC";
 
 // -------- STATE --------
 const initialState = () => ({
@@ -556,6 +556,7 @@ function el(tag, attrs={}, ...children) {
     if (k === "class") e.className = v;
     else if (k.startsWith("on")) e.addEventListener(k.slice(2).toLowerCase(), v);
     else if (k === "html") e.innerHTML = v;
+    else if (v === false || v == null) continue; // skip falsy boolean attrs like disabled
     else e.setAttribute(k, v);
   }
   for (const c of children.flat()) {
