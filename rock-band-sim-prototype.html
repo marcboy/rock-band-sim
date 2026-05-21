@@ -233,6 +233,33 @@
   }
   .slot-actions { display: flex; gap: 8px; }
   .slot-actions .btn.small { flex: 1; }
+  /* News headline card (newspaper style) */
+  .news-card {
+    background: #fcfaf5;
+    border: 1px solid #d8d0c0;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .news-card.win { border-left: 4px solid #22a06b; }
+  .news-card.bad { border-left: 4px solid #c44; }
+  .news-card.neutral { border-left: 4px solid #aaa; }
+  .news-source {
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: #aaa; font-weight: 700; margin-bottom: 6px;
+  }
+  .news-headline {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 17px; font-weight: 700;
+    line-height: 1.25; color: #1a1a1a;
+  }
+  .news-impact {
+    margin-top: 8px; font-size: 11px; color: #666;
+    display: flex; gap: 14px; flex-wrap: wrap;
+  }
+  .news-impact .up { color: #22a06b; font-weight: 600; }
+  .news-impact .down { color: #c44; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -259,8 +286,8 @@
 "use strict";
 
 // -------- VERSION --------
-const APP_VERSION = "v0.3.0";
-const APP_BUILD = "2026-05-20 20:55 UTC";
+const APP_VERSION = "v0.4.1";
+const APP_BUILD = "2026-05-20 21:15 UTC";
 
 // -------- STATE --------
 const initialState = () => ({
@@ -275,6 +302,7 @@ const initialState = () => ({
   albums: [],           // {id, name, releasedWeek, releasedYear, quality, tracks:[songId], lifetimeSales, weeklySales: [{week, units}], fansAdded}
   inProgressAlbum: null,// {name, tracks:[songIds], producer}
   pendingTask: null,    // {type:'write_song'|'record_song', weeksLeft, target}
+  currentNews: null,    // {headline, kind, fanPct, salesMult, appliedFans, week, year}
   log: [],              // {week, year, body, sub, kind}
   pendingEvent: null,
   tab: "dashboard",
@@ -487,6 +515,24 @@ function advanceWeek() {
   if (S.week >= 52) { S.week = 1; S.year += 1; }
   else S.week += 1;
 
+  // Roll this week's newspaper story
+  S.currentNews = rollNews();
+  if (S.currentNews) {
+    const fanDelta = applyNewsFans(S.currentNews.fanPct);
+    S.fans = Math.max(0, S.fans + fanDelta);
+    S.currentNews.appliedFans = fanDelta;
+    const parts = [];
+    if (fanDelta !== 0) parts.push(`${fanDelta>=0?'+':''}${fmt(fanDelta)} fans`);
+    if (S.currentNews.salesMult !== 1) {
+      const pct = Math.round((S.currentNews.salesMult - 1) * 100);
+      parts.push(`album sales ${pct>=0?'+':''}${pct}% this week`);
+    }
+    pushLog(weekLabel(),
+      `📰 ${S.currentNews.headline}`,
+      parts.join(" · ") || "no measurable impact",
+      S.currentNews.kind);
+  }
+
   // Progress pending task
   if (S.pendingTask) {
     S.pendingTask.weeksLeft -= 1;
@@ -497,6 +543,7 @@ function advanceWeek() {
   }
 
   // Sales decay + fans from sales for each album
+  const newsSalesMult = S.currentNews ? S.currentNews.salesMult : 1;
   let salesThisWeek = 0;
   let fansFromSales = 0;
   for (const album of S.albums) {
@@ -506,7 +553,7 @@ function advanceWeek() {
     const ageWeeks = weekIndex() - (album.releasedYear-1)*52 - album.releasedWeek;
     // decay 15% per week, slower for higher quality
     const decay = album.quality >= 7 ? 0.88 : 0.85;
-    const newUnits = Math.max(1, Math.round(last.units * decay));
+    const newUnits = Math.max(1, Math.round(last.units * decay * newsSalesMult));
     album.weeklySales.push({week: weekIndex(), units: newUnits});
     album.lifetimeSales += newUnits;
     salesThisWeek += newUnits;
@@ -617,6 +664,288 @@ function shipAlbum() {
   S.songs = S.songs.filter(s => s.state !== "recorded");
   releaseAlbum(album);
   save(); render();
+}
+
+// -------- WEEKLY NEWS --------
+// Each story: headline, kind (win/bad/neutral), fanPct (-0.05 = lose 5%), salesMult (1.0 = no change)
+// Optional cond(s) gates the story (e.g. requires released albums)
+const NEWS_STORIES = [
+  // === BIG WINS (viral / breakout — high impact) ===
+  { h: "Band's single goes viral on TikTok", k: "win", fanPct: 0.12, salesMult: 1.30 },
+  { h: "NPR Tiny Desk concert clip explodes on YouTube", k: "win", fanPct: 0.10, salesMult: 1.20 },
+  { h: "Rolling Stone names band 'Artist to Watch'", k: "win", fanPct: 0.10, salesMult: 1.18 },
+  { h: "Pitchfork names album in Top 50 of the year", k: "win", fanPct: 0.08, salesMult: 1.25, cond: s => s.albums.length >= 1 },
+  { h: "Band lands magazine cover feature", k: "win", fanPct: 0.08, salesMult: 1.15 },
+  { h: "Late-night TV booking confirmed for Fallon", k: "win", fanPct: 0.10, salesMult: 1.18 },
+  { h: "Music video hits 10M views in 48 hours", k: "win", fanPct: 0.09, salesMult: 1.20 },
+  { h: "Band's song chosen as HBO series theme", k: "win", fanPct: 0.08, salesMult: 1.15 },
+  { h: "Coachella main-stage slot announced", k: "win", fanPct: 0.07, salesMult: 1.10, cond: s => s.fans >= 5000 },
+  { h: "Band joins iconic summer festival lineup", k: "win", fanPct: 0.06, salesMult: 1.10 },
+  { h: "Stereogum calls album 'a generational statement'", k: "win", fanPct: 0.07, salesMult: 1.15, cond: s => s.albums.length >= 1 },
+  { h: "Song dethrones major artist on streaming chart", k: "win", fanPct: 0.10, salesMult: 1.25 },
+  { h: "Netflix greenlights documentary about the band", k: "win", fanPct: 0.08, salesMult: 1.15, cond: s => s.fans >= 5000 },
+  { h: "BBC Radio 1 adds band to heavy rotation", k: "win", fanPct: 0.06, salesMult: 1.12 },
+  { h: "Surprise SNL musical guest booking", k: "win", fanPct: 0.10, salesMult: 1.20, cond: s => s.fans >= 10000 },
+
+  // === MEDIUM WINS (recognition, reviews, awards) ===
+  { h: "AllMusic gives album 4.5 stars", k: "win", fanPct: 0.03, salesMult: 1.08, cond: s => s.albums.length >= 1 },
+  { h: "Spotify features track in 'New Music Friday'", k: "win", fanPct: 0.05, salesMult: 1.12 },
+  { h: "KEXP names song 'Song of the Week'", k: "win", fanPct: 0.04, salesMult: 1.08 },
+  { h: "Indie playlist 'Late Night Drives' adds the band", k: "win", fanPct: 0.04, salesMult: 1.10 },
+  { h: "Vinyl pressing sells out within 48 hours", k: "win", fanPct: 0.03, salesMult: 1.10, cond: s => s.albums.length >= 1 },
+  { h: "Music blog 'Gorilla vs Bear' raves about single", k: "win", fanPct: 0.03, salesMult: 1.06 },
+  { h: "NME runs 4-page feature on the band", k: "win", fanPct: 0.05, salesMult: 1.10 },
+  { h: "Bandcamp Daily features the album", k: "win", fanPct: 0.025, salesMult: 1.08, cond: s => s.albums.length >= 1 },
+  { h: "Apple Music adds song to 'Discover Weekly'", k: "win", fanPct: 0.04, salesMult: 1.10 },
+  { h: "Critic ranks band among year's best new acts", k: "win", fanPct: 0.04, salesMult: 1.08 },
+  { h: "Album lands on year-end 'Best of' lists", k: "win", fanPct: 0.05, salesMult: 1.12, cond: s => s.albums.length >= 1 },
+  { h: "Old song goes viral in a meme", k: "win", fanPct: 0.04, salesMult: 1.15, cond: s => s.albums.length >= 1 },
+  { h: "Album appears in indie film soundtrack", k: "win", fanPct: 0.03, salesMult: 1.08, cond: s => s.albums.length >= 1 },
+  { h: "Surprise cover of Springsteen classic gets praise", k: "win", fanPct: 0.025, salesMult: 1.08 },
+  { h: "Local newspaper writes glowing review", k: "win", fanPct: 0.025, salesMult: 1.05 },
+  { h: "Music podcast 'Switched on Pop' breaks down album", k: "win", fanPct: 0.025, salesMult: 1.06, cond: s => s.albums.length >= 1 },
+  { h: "Indie radio in Austin loops the band's single", k: "win", fanPct: 0.02, salesMult: 1.05 },
+  { h: "Band wins coveted indie radio award", k: "win", fanPct: 0.04, salesMult: 1.08 },
+  { h: "Local DJ remix hits dance floors", k: "win", fanPct: 0.02, salesMult: 1.05 },
+  { h: "Independent zine names band 'Tour Discovery'", k: "win", fanPct: 0.025, salesMult: 1.05 },
+
+  // === CHARITY & WHOLESOME ===
+  { h: "Band plays free Save the Children charity concert", k: "win", fanPct: 0.05, salesMult: 1.05 },
+  { h: "Band visits children's hospital, plays acoustic set", k: "win", fanPct: 0.04, salesMult: 1.03 },
+  { h: "Frontman teaches songwriting at after-school program", k: "win", fanPct: 0.03, salesMult: 1.02 },
+  { h: "Band auctions guitar for hurricane relief — raises $42K", k: "win", fanPct: 0.05, salesMult: 1.05 },
+  { h: "Drummer launches scholarship for music students", k: "win", fanPct: 0.04, salesMult: 1.02 },
+  { h: "Surprise free show at homeless shelter", k: "win", fanPct: 0.03, salesMult: 1.0 },
+  { h: "Band releases benefit single for mental health", k: "win", fanPct: 0.04, salesMult: 1.08 },
+  { h: "Frontman speaks at high school about staying in music", k: "win", fanPct: 0.02, salesMult: 1.0 },
+  { h: "Band donates studio time to up-and-coming local act", k: "win", fanPct: 0.02, salesMult: 1.0 },
+  { h: "Free park concert draws 8,000 in Austin", k: "win", fanPct: 0.05, salesMult: 1.05, cond: s => s.fans >= 2000 },
+  { h: "Band partners with libraries to fund music programs", k: "win", fanPct: 0.025, salesMult: 1.02 },
+  { h: "Bassist organizes winter coat drive", k: "win", fanPct: 0.015, salesMult: 1.0 },
+  { h: "Band's foundation funds local music equipment", k: "win", fanPct: 0.03, salesMult: 1.02 },
+  { h: "Free livestream raises $20K for relief efforts", k: "win", fanPct: 0.03, salesMult: 1.03 },
+  { h: "Band donates van proceeds to food bank", k: "win", fanPct: 0.02, salesMult: 1.0 },
+
+  // === SCANDALS (lose mainstream fans, often boost sales from notoriety) ===
+  { h: "Rock band caught eating a live hamster onstage", k: "bad", fanPct: -0.04, salesMult: 1.25 },
+  { h: "Frontman caught lip-syncing during live show", k: "bad", fanPct: -0.05, salesMult: 0.85 },
+  { h: "Drummer arrested after bar fight in Cleveland", k: "bad", fanPct: -0.02, salesMult: 1.10 },
+  { h: "Frontman's drunk Twitter rant goes viral", k: "bad", fanPct: -0.03, salesMult: 1.05 },
+  { h: "Band caught using AI to write lyrics, fans furious", k: "bad", fanPct: -0.05, salesMult: 0.85 },
+  { h: "Drummer photographed at far-right rally — denies attending", k: "bad", fanPct: -0.05, salesMult: 0.90 },
+  { h: "Frontman cheats on partner, paparazzi photos surface", k: "bad", fanPct: -0.03, salesMult: 1.10 },
+  { h: "Bassist accused of plagiarizing riff from indie band", k: "bad", fanPct: -0.03, salesMult: 0.92 },
+  { h: "Old offensive joke from frontman resurfaces", k: "bad", fanPct: -0.04, salesMult: 0.90 },
+  { h: "Manager fired after embezzlement scandal", k: "bad", fanPct: -0.02, salesMult: 0.95 },
+  { h: "Frontman caught shoplifting from convenience store", k: "bad", fanPct: -0.02, salesMult: 1.05 },
+  { h: "Band sued by venue owner for trashed greenroom", k: "bad", fanPct: -0.02, salesMult: 1.0 },
+  { h: "Drummer outed for dating ex-bandmate's sister", k: "bad", fanPct: -0.015, salesMult: 1.05 },
+  { h: "Frontman's high school tweets resurface online", k: "bad", fanPct: -0.03, salesMult: 0.95 },
+  { h: "Band cancels Pride show — fans accuse of caving", k: "bad", fanPct: -0.04, salesMult: 0.92 },
+  { h: "Tour manager fired after racist remarks on tour bus", k: "bad", fanPct: -0.03, salesMult: 0.95 },
+  { h: "Frontman flips off photographer at red carpet", k: "bad", fanPct: -0.015, salesMult: 1.05 },
+  { h: "Band's lavish tour rider leaks online", k: "bad", fanPct: -0.025, salesMult: 0.95 },
+  { h: "Frontman accused of stealing fan's lyrics", k: "bad", fanPct: -0.04, salesMult: 0.92 },
+  { h: "Drummer photographed with rival's partner", k: "bad", fanPct: -0.02, salesMult: 1.05 },
+
+  // === BAD NEWS (industry, business setbacks) ===
+  { h: "Album leaks early on torrent sites", k: "bad", fanPct: 0.01, salesMult: 0.80, cond: s => s.albums.length >= 1 },
+  { h: "Music critic publishes scathing op-ed", k: "bad", fanPct: -0.025, salesMult: 0.92 },
+  { h: "Festival bumps band from main stage to side tent", k: "bad", fanPct: -0.02, salesMult: 0.95 },
+  { h: "Streaming royalties down 3% this quarter", k: "bad", fanPct: -0.005, salesMult: 0.95 },
+  { h: "Local college station drops band from rotation", k: "bad", fanPct: -0.015, salesMult: 0.96 },
+  { h: "Old album quietly delisted from major service", k: "bad", fanPct: -0.01, salesMult: 0.90 },
+  { h: "Critic calls band 'past their peak' in column", k: "bad", fanPct: -0.03, salesMult: 0.90 },
+  { h: "Equipment damaged in warehouse fire", k: "bad", fanPct: -0.005, salesMult: 1.0 },
+  { h: "Old show recording leaks, frontman embarrassed", k: "bad", fanPct: -0.01, salesMult: 0.97 },
+  { h: "Show in Detroit only fills 30% of venue", k: "bad", fanPct: -0.015, salesMult: 0.95 },
+  { h: "Band's name misspelled on major festival lineup", k: "bad", fanPct: -0.005, salesMult: 0.98 },
+  { h: "Tour van gets $800 in parking tickets", k: "bad", fanPct: 0.0, salesMult: 1.0 },
+  { h: "Single drops out of indie chart top 100", k: "bad", fanPct: -0.02, salesMult: 0.92, cond: s => s.fans >= 3000 },
+  { h: "Producer publicly bashes band's work ethic", k: "bad", fanPct: -0.025, salesMult: 0.92 },
+  { h: "Sound engineer quits mid-tour over wage dispute", k: "bad", fanPct: -0.01, salesMult: 0.97 },
+
+  // === PERSONAL LIFE ===
+  { h: "Frontman gets married in surprise Vegas ceremony", k: "win", fanPct: 0.02, salesMult: 1.05 },
+  { h: "Drummer announces first baby on the way", k: "win", fanPct: 0.025, salesMult: 1.03 },
+  { h: "Bassist files for divorce after 3 years", k: "bad", fanPct: -0.01, salesMult: 1.02 },
+  { h: "Frontman pens emotional Instagram post about anxiety", k: "neutral", fanPct: 0.015, salesMult: 1.02 },
+  { h: "Drummer's father passes, band cancels weekend shows", k: "neutral", fanPct: 0.015, salesMult: 1.0 },
+  { h: "Frontman buys mountain cabin, claims he's 'finding himself'", k: "neutral", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Bassist marries longtime girlfriend in private ceremony", k: "win", fanPct: 0.015, salesMult: 1.02 },
+  { h: "Frontman's new puppy becomes viral Instagram star", k: "win", fanPct: 0.02, salesMult: 1.02 },
+  { h: "Drummer's autobiography announced for next year", k: "win", fanPct: 0.02, salesMult: 1.05 },
+  { h: "Frontman opens up about therapy in podcast interview", k: "win", fanPct: 0.02, salesMult: 1.02 },
+  { h: "Bassist's sister joins band as backing vocalist", k: "neutral", fanPct: 0.01, salesMult: 1.02 },
+  { h: "Frontman moves out of band's shared house", k: "neutral", fanPct: -0.005, salesMult: 1.0 },
+  { h: "Drummer adopts rescue dog from local shelter", k: "win", fanPct: 0.015, salesMult: 1.0 },
+  { h: "Frontman seen at Joshua Tree retreat alone", k: "neutral", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Bassist takes year off to care for ailing parent", k: "neutral", fanPct: 0.01, salesMult: 1.0 },
+  { h: "Frontman cancels show citing mental health", k: "neutral", fanPct: 0.015, salesMult: 1.0 },
+
+  // === TOUR INCIDENTS ===
+  { h: "Tour bus breaks down — fans help push it", k: "win", fanPct: 0.015, salesMult: 1.02 },
+  { h: "Tour bus crashes in Nebraska, no injuries", k: "neutral", fanPct: 0.015, salesMult: 1.0 },
+  { h: "Bassist hospitalized after slipping on stage", k: "neutral", fanPct: 0.01, salesMult: 1.0 },
+  { h: "Frontman loses voice mid-tour, shows postponed", k: "bad", fanPct: -0.02, salesMult: 0.95 },
+  { h: "Festival cancels band's set due to thunderstorm", k: "bad", fanPct: -0.01, salesMult: 0.97 },
+  { h: "Crowd surfer breaks frontman's microphone", k: "neutral", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Power outage cuts headline set short", k: "bad", fanPct: -0.015, salesMult: 0.97 },
+  { h: "Riot breaks out at all-ages show, no arrests", k: "bad", fanPct: -0.005, salesMult: 1.05 },
+  { h: "Equipment truck stolen — band plays with borrowed gear", k: "win", fanPct: 0.025, salesMult: 1.03 },
+  { h: "Snowstorm strands band in Montana hotel for 3 days", k: "neutral", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Drummer collapses from exhaustion, ER visit", k: "bad", fanPct: -0.01, salesMult: 0.97 },
+  { h: "Border officials hassle band re-entering US", k: "neutral", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Band heckled at small-town venue, video spreads", k: "bad", fanPct: -0.015, salesMult: 1.05 },
+  { h: "Crowd at Brooklyn venue sets attendance record", k: "win", fanPct: 0.03, salesMult: 1.05 },
+  { h: "Surprise underplay at tiny venue sells out in minutes", k: "win", fanPct: 0.04, salesMult: 1.08 },
+
+  // === INTERNET / SOCIAL MEDIA ===
+  { h: "Studio session leaked on Instagram, fans hyped", k: "win", fanPct: 0.012, salesMult: 1.03 },
+  { h: "Frontman starts Twitter feud with mainstream pop star", k: "bad", fanPct: -0.015, salesMult: 1.10 },
+  { h: "Drummer joins TikTok, hits 200K followers in a week", k: "win", fanPct: 0.03, salesMult: 1.05 },
+  { h: "Bassist's cooking vlog hits 1M views", k: "win", fanPct: 0.025, salesMult: 1.03 },
+  { h: "Frontman's hot take on streaming royalties goes viral", k: "win", fanPct: 0.025, salesMult: 1.03 },
+  { h: "Band's Reddit AMA hits front page", k: "win", fanPct: 0.025, salesMult: 1.05 },
+  { h: "Frontman tweets cryptic message, fans speculate breakup", k: "bad", fanPct: -0.015, salesMult: 1.05 },
+  { h: "Band's Instagram hacked, posts crypto scam", k: "bad", fanPct: -0.02, salesMult: 0.97 },
+  { h: "Frontman starts Substack about life on the road", k: "win", fanPct: 0.015, salesMult: 1.02 },
+  { h: "Band's TikTok dance challenge takes off", k: "win", fanPct: 0.06, salesMult: 1.15 },
+  { h: "Old MySpace photos of frontman resurface", k: "neutral", fanPct: 0.005, salesMult: 1.02 },
+  { h: "Frontman live-streams entire writing session", k: "win", fanPct: 0.02, salesMult: 1.03 },
+  { h: "Drummer's tweet roasting Coachella goes viral", k: "win", fanPct: 0.025, salesMult: 1.03 },
+  { h: "Band's YouTube channel hits 1M subscribers", k: "win", fanPct: 0.04, salesMult: 1.10, cond: s => s.fans >= 5000 },
+  { h: "Frontman accidentally posts unreleased demo publicly", k: "neutral", fanPct: 0.015, salesMult: 1.05 },
+
+  // === MUSIC INDUSTRY DEALS ===
+  { h: "Band rejects $50K sponsor deal, fans love the integrity", k: "win", fanPct: 0.025, salesMult: 1.02 },
+  { h: "Surprise distribution deal signed with Sub Pop", k: "win", fanPct: 0.05, salesMult: 1.10 },
+  { h: "Major label offer reported, band undecided", k: "neutral", fanPct: 0.02, salesMult: 1.05 },
+  { h: "Band launches own record label to release friends' music", k: "win", fanPct: 0.03, salesMult: 1.02 },
+  { h: "Publishing deal signed with Kobalt", k: "win", fanPct: 0.015, salesMult: 1.03 },
+  { h: "Music featured in indie video game soundtrack", k: "win", fanPct: 0.025, salesMult: 1.08 },
+  { h: "Honda commercial pays $80K for song use", k: "win", fanPct: 0.01, salesMult: 1.05 },
+  { h: "Band turns down Super Bowl halftime sponsorship offer", k: "win", fanPct: 0.04, salesMult: 1.05, cond: s => s.fans >= 10000 },
+  { h: "Brand collab with vinyl pressing company announced", k: "win", fanPct: 0.015, salesMult: 1.02 },
+  { h: "Merch line picked up by Urban Outfitters", k: "win", fanPct: 0.02, salesMult: 1.05 },
+
+  // === OTHER BANDS / COLLABS / FEUDS ===
+  { h: "Bassist seen leaving rival band's recording session", k: "neutral", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Frontman publicly disses popular indie band", k: "neutral", fanPct: 0.005, salesMult: 1.05 },
+  { h: "Collaboration with veteran rock band confirmed", k: "win", fanPct: 0.05, salesMult: 1.10 },
+  { h: "Drummer rumored to be joining major touring act", k: "bad", fanPct: -0.025, salesMult: 0.95 },
+  { h: "Frontman covers indie peer's song, mutual praise", k: "win", fanPct: 0.02, salesMult: 1.03 },
+  { h: "Drummer plays guest set with experimental jazz trio", k: "neutral", fanPct: 0.01, salesMult: 1.0 },
+  { h: "Frontman's hot take on 'industry plant' debate goes viral", k: "neutral", fanPct: 0.015, salesMult: 1.03 },
+  { h: "Bassist joins side project with members of three other bands", k: "neutral", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Old tourmates accuse band of stealing setlist ideas", k: "bad", fanPct: -0.015, salesMult: 0.97 },
+  { h: "Frontman helps new band book their first tour", k: "win", fanPct: 0.015, salesMult: 1.0 },
+  { h: "Band invited to tribute show for legendary songwriter", k: "win", fanPct: 0.03, salesMult: 1.05 },
+  { h: "Frontman's beef with critic spans 6-tweet exchange", k: "neutral", fanPct: 0.005, salesMult: 1.02 },
+
+  // === QUIRKY / WEIRD / FASHION ===
+  { h: "Frontman dyes hair neon green for music video", k: "neutral", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Bassist launches artisan guitar pick line", k: "neutral", fanPct: 0.003, salesMult: 1.0 },
+  { h: "Drummer's pet parrot becomes unofficial mascot", k: "neutral", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Frontman spotted at celebrity wedding", k: "neutral", fanPct: 0.008, salesMult: 1.02 },
+  { h: "Frontman wears all-denim to award show, internet roasts", k: "neutral", fanPct: -0.003, salesMult: 1.02 },
+  { h: "Band's new photos shot in an abandoned mall", k: "neutral", fanPct: 0.01, salesMult: 1.02 },
+  { h: "Frontman's vintage shirt sells for $400 on eBay", k: "neutral", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Bassist's beard featured in Esquire grooming article", k: "neutral", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Drummer claims to only eat eggs before shows — superstition", k: "neutral", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Band photographed exiting psychic's office", k: "neutral", fanPct: 0.003, salesMult: 1.02 },
+  { h: "Frontman gets matching tattoos with bandmates", k: "neutral", fanPct: 0.01, salesMult: 1.02 },
+  { h: "Music video shot entirely on iPhone goes viral", k: "win", fanPct: 0.03, salesMult: 1.05 },
+  { h: "Frontman wears chicken suit during encore", k: "neutral", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Band hires former circus performer for stage shows", k: "neutral", fanPct: 0.015, salesMult: 1.02 },
+  { h: "Frontman briefly grows mustache — fans split on opinion", k: "neutral", fanPct: 0.0, salesMult: 1.0 },
+
+  // === FAN MOMENTS ===
+  { h: "Wedding proposal happens during band's set, both say yes", k: "win", fanPct: 0.025, salesMult: 1.03 },
+  { h: "Fan gets lyrics tattooed, frontman re-posts", k: "win", fanPct: 0.015, salesMult: 1.02 },
+  { h: "Superfan attends 50th show, band invites her backstage", k: "win", fanPct: 0.01, salesMult: 1.0 },
+  { h: "Fan brings homemade cake shaped like album cover", k: "win", fanPct: 0.008, salesMult: 1.0 },
+  { h: "Mother of fan thanks band for daughter's music journey", k: "win", fanPct: 0.015, salesMult: 1.0 },
+  { h: "Fan convention organized, 300 attend in Brooklyn", k: "win", fanPct: 0.02, salesMult: 1.02, cond: s => s.fans >= 5000 },
+  { h: "Fan starts unofficial podcast dissecting band's lyrics", k: "win", fanPct: 0.015, salesMult: 1.02 },
+  { h: "Fans organize global listening party for new single", k: "win", fanPct: 0.025, salesMult: 1.05 },
+  { h: "Devoted fan flies from Japan for small UK show", k: "win", fanPct: 0.01, salesMult: 1.0 },
+  { h: "Cover band tribute sells out small venue", k: "win", fanPct: 0.01, salesMult: 1.0, cond: s => s.fans >= 3000 },
+
+  // === SMALL WINS (flavor) ===
+  { h: "Frontman appears on popular music podcast", k: "win", fanPct: 0.015, salesMult: 1.02 },
+  { h: "Band's song lands in Whole Foods rotation", k: "win", fanPct: 0.01, salesMult: 1.03 },
+  { h: "Old tour t-shirt becomes vintage collector's item", k: "win", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Drummer wins local 'Best Beats' award", k: "win", fanPct: 0.008, salesMult: 1.0 },
+  { h: "Used record store reports album in heavy demand", k: "win", fanPct: 0.015, salesMult: 1.05, cond: s => s.albums.length >= 1 },
+  { h: "Streaming numbers up 18% week-over-week", k: "win", fanPct: 0.02, salesMult: 1.05 },
+  { h: "Photo featured in coffee table book of indie scenes", k: "win", fanPct: 0.01, salesMult: 1.0 },
+  { h: "Frontman's solo acoustic clip racks up 500K views", k: "win", fanPct: 0.025, salesMult: 1.03 },
+  { h: "Old EP gets digital re-release, fans celebrate", k: "win", fanPct: 0.015, salesMult: 1.05, cond: s => s.albums.length >= 2 },
+  { h: "Sound engineer wins indie production award", k: "win", fanPct: 0.01, salesMult: 1.02 },
+  { h: "Tribute act covers band's song at Sundance", k: "win", fanPct: 0.015, salesMult: 1.02 },
+  { h: "New merch design sells out in pre-order", k: "win", fanPct: 0.01, salesMult: 1.0 },
+  { h: "Local DJ remixes hit, brings new audience", k: "win", fanPct: 0.015, salesMult: 1.05 },
+  { h: "Gear stolen, but local musicians replace it", k: "win", fanPct: 0.015, salesMult: 1.0 },
+  { h: "Tour bus breakdown sparks viral fan-help thread", k: "win", fanPct: 0.015, salesMult: 1.02 },
+
+  // === MEMBER-SPECIFIC DRAMA ===
+  { h: "Drummer's solo project gets surprise positive review", k: "neutral", fanPct: 0.005, salesMult: 1.0 },
+  { h: "Bassist drops Instagram hint about leaving, then deletes", k: "bad", fanPct: -0.02, salesMult: 0.97 },
+  { h: "Frontman's high school yearbook photo goes viral", k: "neutral", fanPct: 0.008, salesMult: 1.02 },
+  { h: "Drummer photographed at MMA gym, 'tough guy' rumors", k: "neutral", fanPct: 0.008, salesMult: 1.02 },
+  { h: "Bassist's mom unexpectedly appears in band's music video", k: "win", fanPct: 0.015, salesMult: 1.03 },
+  { h: "Frontman writes essay about leaving small-town life", k: "win", fanPct: 0.015, salesMult: 1.02 },
+  { h: "Drummer denies rumors of joining major touring act", k: "neutral", fanPct: 0.01, salesMult: 1.0 },
+  { h: "Bassist gets honorary degree from state university", k: "win", fanPct: 0.01, salesMult: 1.0 },
+  { h: "Frontman's old band's reunion announcement causes stir", k: "neutral", fanPct: -0.005, salesMult: 0.98 },
+  { h: "Drummer publicly criticizes major label practices", k: "win", fanPct: 0.02, salesMult: 1.03 },
+  { h: "Frontman reads from new book of poetry at festival", k: "neutral", fanPct: 0.015, salesMult: 1.02 },
+  { h: "Bassist writes op-ed about touring economics", k: "neutral", fanPct: 0.015, salesMult: 1.02 },
+  { h: "Drummer guest-DJs at famed Brooklyn nightclub", k: "win", fanPct: 0.015, salesMult: 1.02 },
+  { h: "Frontman's voice acting cameo in animated series", k: "win", fanPct: 0.02, salesMult: 1.03 },
+  { h: "Bassist quits social media, fans speculate burnout", k: "neutral", fanPct: -0.005, salesMult: 1.0 },
+
+  // === QUIET WEEKS (~15% of rolls) ===
+  { h: "Slow news week — band stays out of the spotlight", k: "neutral", fanPct: -0.003, salesMult: 1.0, quiet: true },
+  { h: "Band rehearses in private, no news to report", k: "neutral", fanPct: 0.0, salesMult: 1.0, quiet: true },
+  { h: "No press this week — frontman vacations in Mexico", k: "neutral", fanPct: -0.002, salesMult: 1.0, quiet: true },
+  { h: "Band takes the week off after long tour leg", k: "neutral", fanPct: -0.003, salesMult: 1.0, quiet: true },
+  { h: "Members scatter for the week, no press obligations", k: "neutral", fanPct: 0.0, salesMult: 1.0, quiet: true },
+  { h: "Quiet stretch — fans wonder what's next", k: "neutral", fanPct: -0.005, salesMult: 1.0, quiet: true },
+  { h: "Band lays low while writing new material", k: "neutral", fanPct: 0.0, salesMult: 1.0, quiet: true },
+  { h: "No appearances scheduled, no headlines made", k: "neutral", fanPct: -0.003, salesMult: 1.0, quiet: true },
+];
+
+function rollNews() {
+  // ~85% chance of a real news story, ~15% chance of a "quiet week"
+  const pool = NEWS_STORIES.filter(n => !n.cond || n.cond(S));
+  const wantQuiet = Math.random() < 0.15;
+  const candidates = pool.filter(n => wantQuiet ? n.quiet : !n.quiet);
+  const chosen = candidates.length > 0
+    ? candidates[randint(0, candidates.length - 1)]
+    : pool[randint(0, pool.length - 1)];
+  return {
+    headline: chosen.h,
+    kind: chosen.k,
+    fanPct: chosen.fanPct,
+    salesMult: chosen.salesMult,
+    week: S.week, year: S.year,
+  };
+}
+
+function applyNewsFans(pct) {
+  if (pct === 0) return 0;
+  // Early game: fans are 0, percent has no effect — give small flat impact for positive news only
+  if (S.fans < 200) {
+    if (pct > 0) return Math.round(pct * 600); // e.g. +5% → +30 fans
+    return 0; // no penalty when you have nothing to lose
+  }
+  const delta = Math.round(S.fans * pct);
+  // Ensure visible impact
+  if (pct > 0 && delta < 10) return 10;
+  if (pct < 0 && delta > -10) return -10;
+  return delta;
 }
 
 // -------- EVENTS --------
@@ -757,6 +1086,28 @@ function renderDashboard() {
     c.appendChild(el("div", {class:"card dashed"},
       el("p", {style:"font-size:13px;margin:0;color:#666"},
         `${S.songs.length} songs in backlog · ${recorded} ready to ship as album`)
+    ));
+  }
+
+  // This week's headline
+  if (S.currentNews) {
+    c.appendChild(el("h3", {class:"section"}, "This week's headline"));
+    const news = S.currentNews;
+    const impact = [];
+    if (news.appliedFans !== undefined && news.appliedFans !== 0) {
+      impact.push(el("span", {class: news.appliedFans > 0 ? "up" : "down"},
+        `${news.appliedFans > 0 ? "▲" : "▼"} ${fmt(Math.abs(news.appliedFans))} fans`));
+    }
+    if (news.salesMult !== 1) {
+      const pct = Math.round((news.salesMult - 1) * 100);
+      impact.push(el("span", {class: news.salesMult > 1 ? "up" : "down"},
+        `${news.salesMult > 1 ? "▲" : "▼"} album sales ${pct >= 0 ? "+" : ""}${pct}% this week`));
+    }
+    if (impact.length === 0) impact.push(el("span", {style:"color:#aaa"}, "no measurable impact"));
+    c.appendChild(el("div", {class: "news-card " + news.kind},
+      el("div", {class:"news-source"}, "The Weekly Wire"),
+      el("div", {class:"news-headline"}, news.headline),
+      el("div", {class:"news-impact"}, ...impact)
     ));
   }
 
