@@ -260,6 +260,57 @@
   }
   .news-impact .up { color: #22a06b; font-weight: 600; }
   .news-impact .down { color: #c44; font-weight: 600; }
+  /* Charts */
+  .chart-card {
+    border: 1px solid #ddd; border-radius: 14px;
+    padding: 12px; margin-bottom: 12px;
+    background: #fff;
+  }
+  .chart-meta {
+    display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;
+  }
+  .chart-now {
+    font-size: 22px; font-weight: 700; color: #222;
+  }
+  .chart-label {
+    font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .chart-empty {
+    color: #aaa; font-size: 13px; text-align: center; padding: 36px 8px;
+  }
+  .legend {
+    display: flex; gap: 14px; font-size: 11px; color: #666;
+    padding: 8px 4px 0; flex-wrap: wrap;
+  }
+  .legend .sw {
+    display: inline-block; width: 10px; height: 2px;
+    background: #888; margin-right: 5px; vertical-align: middle;
+    border-radius: 1px;
+  }
+  .legend .sw.release { background: #1d6dd6; }
+  .legend .sw.win { background: #22a06b; }
+  .legend .sw.bad { background: #c44; }
+  .events-list {
+    border: 1px solid #ddd; border-radius: 12px;
+    background: #fff;
+  }
+  .ev-row {
+    display: flex; gap: 12px; padding: 10px 14px;
+    border-bottom: 1px solid #eee;
+    align-items: flex-start;
+  }
+  .ev-row:last-child { border-bottom: 0; }
+  .ev-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0; margin-top: 4px;
+    background: #888;
+  }
+  .ev-dot.release { background: #1d6dd6; }
+  .ev-dot.win { background: #22a06b; }
+  .ev-dot.bad { background: #c44; }
+  .ev-body { flex: 1; min-width: 0; }
+  .ev-label { font-size: 13px; font-weight: 600; color: #222; line-height: 1.3; }
+  .ev-when { font-size: 11px; color: #888; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -275,6 +326,7 @@
       <button class="tab" data-tab="dashboard"><div class="dot"></div><div>Band</div></button>
       <button class="tab" data-tab="studio"><div class="dot"></div><div>Studio</div></button>
       <button class="tab" data-tab="albums"><div class="dot"></div><div>Albums</div></button>
+      <button class="tab" data-tab="charts"><div class="dot"></div><div>Charts</div></button>
     </div>
   </div>
   <div class="hint">
@@ -286,8 +338,8 @@
 "use strict";
 
 // -------- VERSION --------
-const APP_VERSION = "v0.4.1";
-const APP_BUILD = "2026-05-20 21:15 UTC";
+const APP_VERSION = "v0.5.0";
+const APP_BUILD = "2026-05-20 21:25 UTC";
 
 // -------- STATE --------
 const initialState = () => ({
@@ -303,6 +355,7 @@ const initialState = () => ({
   inProgressAlbum: null,// {name, tracks:[songIds], producer}
   pendingTask: null,    // {type:'write_song'|'record_song', weeksLeft, target}
   currentNews: null,    // {headline, kind, fanPct, salesMult, appliedFans, week, year}
+  majorEvents: [],      // {weekIdx, label, kind, type} for Charts overlay
   log: [],              // {week, year, body, sub, kind}
   pendingEvent: null,
   tab: "dashboard",
@@ -491,6 +544,16 @@ function releaseAlbum(album) {
     `${launchAdj} · quality ${album.quality.toFixed(1)} · ${dollars(cashFromAlbum)} earned`,
     "win");
 
+  // Track album release as major event for the Charts overlay
+  if (!S.majorEvents) S.majorEvents = [];
+  S.majorEvents.push({
+    weekIdx: weekIndex(),
+    label: `Released "${album.name}"`,
+    kind: "release",
+    type: "release",
+  });
+  if (S.majorEvents.length > 100) S.majorEvents.shift();
+
   // A buzz event
   if (launch > 1.5) {
     const sites = ["Pitchfork","Stereogum","NPR Music","The Fader"];
@@ -581,8 +644,24 @@ function advanceWeek() {
 
   S.weeklySalesHistory.push(salesThisWeek);
   S.weeklyFansHistory.push(S.fans);
-  if (S.weeklySalesHistory.length > 52) S.weeklySalesHistory.shift();
-  if (S.weeklyFansHistory.length > 52) S.weeklyFansHistory.shift();
+  if (S.weeklySalesHistory.length > 520) S.weeklySalesHistory.shift();
+  if (S.weeklyFansHistory.length > 520) S.weeklyFansHistory.shift();
+
+  // Track major event from this week's news (big enough to show on chart)
+  if (!S.majorEvents) S.majorEvents = [];
+  if (S.currentNews) {
+    const big = Math.abs(S.currentNews.fanPct) >= 0.05
+             || Math.abs(S.currentNews.salesMult - 1) >= 0.15;
+    if (big) {
+      S.majorEvents.push({
+        weekIdx: weekIndex(),
+        label: S.currentNews.headline,
+        kind: S.currentNews.kind,
+        type: "news",
+      });
+      if (S.majorEvents.length > 100) S.majorEvents.shift();
+    }
+  }
 
   // Random event roll
   maybeRollEvent();
@@ -1286,6 +1365,129 @@ function renderAlbums() {
   return c;
 }
 
+function buildLineChart({values, events, width, height, color, currentWeekIdx, valueLabel}) {
+  if (!values || values.length < 2) {
+    return `<div class="chart-empty">Not enough data yet — advance a few weeks.</div>`;
+  }
+  const padding = { top: 14, right: 14, bottom: 22, left: 40 };
+  const innerW = width - padding.left - padding.right;
+  const innerH = height - padding.top - padding.bottom;
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = Math.max(max - min, 1);
+  const firstWeekIdx = currentWeekIdx - values.length + 1;
+
+  const xFor = (i) => padding.left + (i / Math.max(values.length - 1, 1)) * innerW;
+  const yFor = (v) => padding.top + innerH - ((v - min) / range) * innerH;
+
+  // Build SVG pieces
+  let parts = [];
+  // Gridlines (4 horizontal)
+  for (let g = 0; g <= 4; g++) {
+    const y = padding.top + (g / 4) * innerH;
+    const val = max - (g / 4) * range;
+    parts.push(`<line x1="${padding.left}" y1="${y}" x2="${width-padding.right}" y2="${y}" stroke="#eee"/>`);
+    parts.push(`<text x="${padding.left-6}" y="${y+3}" font-size="9" fill="#aaa" text-anchor="end">${fmt(val)}</text>`);
+  }
+  // Event markers (vertical dashed lines)
+  const visibleEvents = (events || []).filter(e => e.weekIdx >= firstWeekIdx && e.weekIdx <= currentWeekIdx);
+  for (const ev of visibleEvents) {
+    const idx = ev.weekIdx - firstWeekIdx;
+    const x = xFor(idx);
+    const c = ev.kind === "win" ? "#22a06b" : ev.kind === "bad" ? "#c44" : ev.kind === "release" ? "#1d6dd6" : "#888";
+    parts.push(`<line x1="${x}" y1="${padding.top}" x2="${x}" y2="${height-padding.bottom}" stroke="${c}" stroke-dasharray="2 3" opacity="0.55"/>`);
+    if (ev.kind === "release") {
+      parts.push(`<circle cx="${x}" cy="${padding.top}" r="3.5" fill="${c}"/>`);
+    }
+  }
+  // Polyline
+  const points = values.map((v, i) => `${xFor(i)},${yFor(v)}`).join(" ");
+  parts.push(`<polyline points="${points}" fill="none" stroke="${color || '#222'}" stroke-width="2"/>`);
+  // X-axis labels (start, middle, end)
+  const ticks = [0, Math.floor(values.length/2), values.length-1];
+  for (const i of ticks) {
+    const w = firstWeekIdx + i;
+    const wkYear = Math.floor((w-1) / 52) + 1;
+    const wkWeek = ((w-1) % 52) + 1;
+    parts.push(`<text x="${xFor(i)}" y="${height-6}" font-size="9" fill="#aaa" text-anchor="middle">Y${wkYear}W${wkWeek}</text>`);
+  }
+
+  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;">${parts.join('')}</svg>`;
+}
+
+function renderCharts() {
+  const c = el("div", {class:"screen"});
+  const currentWeekIdx = weekIndex();
+  const fans = S.weeklyFansHistory || [];
+  const sales = S.weeklySalesHistory || [];
+  const events = (S.majorEvents || []).slice();
+
+  c.appendChild(el("div", {style:"padding-top:8px"},
+    el("h1", {style:"margin:0;font-size:24px;font-weight:700"}, "Charts"),
+    el("p", {style:"margin:4px 0 0;font-size:12px;color:#888"},
+      `${fans.length} week${fans.length===1?"":"s"} of history · ${events.length} major event${events.length===1?"":"s"}`)
+  ));
+
+  // Fans chart
+  const lifetimeSales = S.albums.reduce((a,b) => a + b.lifetimeSales, 0);
+  c.appendChild(el("h3", {class:"section"}, "Fans over time"));
+  c.appendChild(el("div", {class:"chart-card"},
+    el("div", {class:"chart-meta"},
+      el("span", {class:"chart-now"}, fmt(S.fans)),
+      el("span", {class:"chart-label"}, "now")
+    ),
+    el("div", {html: buildLineChart({
+      values: fans, events, width: 340, height: 170,
+      color: "#222", currentWeekIdx, valueLabel: "fans"
+    })})
+  ));
+
+  // Sales chart
+  c.appendChild(el("h3", {class:"section"}, "Album sales per week"));
+  c.appendChild(el("div", {class:"chart-card"},
+    el("div", {class:"chart-meta"},
+      el("span", {class:"chart-now"}, fmt(lifetimeSales)),
+      el("span", {class:"chart-label"}, "lifetime")
+    ),
+    el("div", {html: buildLineChart({
+      values: sales, events, width: 340, height: 170,
+      color: "#1d6dd6", currentWeekIdx, valueLabel: "units"
+    })})
+  ));
+
+  // Legend
+  c.appendChild(el("div", {class:"legend"},
+    el("span", {}, el("span", {class:"sw release"}), "Album release"),
+    el("span", {}, el("span", {class:"sw win"}), "Big win"),
+    el("span", {}, el("span", {class:"sw bad"}), "Setback")
+  ));
+
+  // Major events list
+  c.appendChild(el("h3", {class:"section"}, "Major events"));
+  if (events.length === 0) {
+    c.appendChild(el("div", {class:"empty"},
+      "Big releases and viral moments will appear here as your career unfolds."));
+  } else {
+    const list = el("div", {class:"events-list"});
+    // newest first
+    for (const ev of [...events].reverse()) {
+      const yearOf = Math.floor((ev.weekIdx - 1) / 52) + 1;
+      const weekOf = ((ev.weekIdx - 1) % 52) + 1;
+      const dot = el("span", {class: "ev-dot " + ev.kind});
+      list.appendChild(el("div", {class:"ev-row"},
+        dot,
+        el("div", {class:"ev-body"},
+          el("div", {class:"ev-label"}, ev.label),
+          el("div", {class:"ev-when"}, `Y${yearOf} W${weekOf}`)
+        )
+      ));
+    }
+    c.appendChild(list);
+  }
+
+  return c;
+}
+
 function renderEventModal() {
   if (!S.pendingEvent) return null;
   const ev = S.pendingEvent;
@@ -1363,7 +1565,7 @@ function render() {
   const app = document.getElementById("app");
   app.innerHTML = "";
   // Nav
-  const titles = { dashboard: "Band", studio: "Studio", albums: "Albums" };
+  const titles = { dashboard: "Band", studio: "Studio", albums: "Albums", charts: "Charts" };
   app.appendChild(el("div", {class:"nav"}, titles[S.tab],
     el("button", {class:"meta meta-btn",
       onclick: () => { savesModalOpen = true; render(); }},
@@ -1372,7 +1574,8 @@ function render() {
   let screen;
   if (S.tab === "dashboard") screen = renderDashboard();
   else if (S.tab === "studio") screen = renderStudio();
-  else screen = renderAlbums();
+  else if (S.tab === "albums") screen = renderAlbums();
+  else screen = renderCharts();
   app.appendChild(screen);
 
   // Event modal
