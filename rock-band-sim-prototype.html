@@ -386,8 +386,8 @@
 "use strict";
 
 // -------- VERSION --------
-const APP_VERSION = "v0.6.0";
-const APP_BUILD = "2026-05-20 21:40 UTC";
+const APP_VERSION = "v0.6.1";
+const APP_BUILD = "2026-05-20 21:50 UTC";
 
 // -------- STATE --------
 const initialState = () => ({
@@ -822,6 +822,23 @@ const TOURS = [
   { id: 'nationwide', name: 'Nationwide Tour',        venueIds: ['theatre','bigclub','theatre','bigclub','bigvenue'], weeks: 5, minFans: 15000, bonusPerGig: 1000 },
 ];
 
+function energyCostForVenue(cap, isTour) {
+  let base;
+  if (cap <= 200)       base = 5;
+  else if (cap <= 500)  base = 10;
+  else if (cap <= 1500) base = 15;
+  else if (cap <= 5000) base = 20;
+  else                  base = 25;
+  return base + (isTour ? 3 : 0); // touring is more taxing per gig
+}
+
+function tiredMultiplier(energy) {
+  if (energy < 15) return 0.65;  // exhausted
+  if (energy < 30) return 0.80;  // very tired
+  if (energy < 50) return 0.90;  // tired
+  return 1.0;                    // rested
+}
+
 function nextAvailableWeek() {
   let w = weekIndex() + 1;
   while ((S.pendingGigs || []).some(g => g.weekIdx === w)) w++;
@@ -872,7 +889,9 @@ function resolveGig(gig) {
   // Local pull: 10% of fans in hometown, ~4% in other cities (no touring multi-market yet)
   const isHome = gig.city === 'hometown';
   const reachPct = isHome ? 0.10 : 0.04;
-  const expected = S.fans * reachPct + 30 + rand(0, 60);
+  // Tired bands underperform — applied BEFORE deducting this gig's energy
+  const tiredMult = tiredMultiplier(S.energy);
+  const expected = (S.fans * reachPct + 30 + rand(0, 60)) * tiredMult;
   const attendance = Math.min(gig.capacity, Math.max(5, Math.round(expected)));
   const attPct = attendance / gig.capacity;
   // Cash: guarantee + $5/attendee door split
@@ -881,15 +900,20 @@ function resolveGig(gig) {
   // New fans: ~4% of attendees convert
   const newFans = Math.round(attendance * 0.04);
   S.fans += newFans;
+  // Now deduct energy
+  const energyCost = energyCostForVenue(gig.capacity, gig.type === 'tour');
+  S.energy = Math.max(0, S.energy - energyCost);
   // Log it
   const attDesc = attPct >= 0.95 ? 'sold out' :
                   attPct >= 0.70 ? 'strong turnout' :
                   attPct >= 0.45 ? 'decent crowd' :
                                    'sparse crowd';
   const kind = attPct >= 0.7 ? 'win' : attPct < 0.3 ? 'bad' : 'neutral';
+  const tiredNote = tiredMult < 1 ? ` · tired (-${Math.round((1-tiredMult)*100)}% draw)` : '';
+  const exhaustedNote = S.energy < 20 ? ' · band exhausted' : '';
   pushLog(weekLabel(),
     `🎸 Played ${gig.venue}, ${gig.city === 'hometown' ? 'home' : gig.city}`,
-    `${attDesc} · ${attendance}/${gig.capacity} · +${fmt(newFans)} fans · ${dollars(cash)}${gig.tourName ? ' · ' + gig.tourName : ''}`,
+    `${attDesc} · ${attendance}/${gig.capacity} · +${fmt(newFans)} fans · ${dollars(cash)} · -${energyCost} energy${tiredNote}${exhaustedNote}${gig.tourName ? ' · ' + gig.tourName : ''}`,
     kind);
   // Mark larger shows as major events on Charts
   if (gig.capacity >= 1000) {
@@ -1304,8 +1328,8 @@ function renderDashboard() {
     ),
     el("div", {style:"flex:1"},
       el("p", {class:"label"}, "Band energy"),
-      el("div", {class:"meter"}, el("div", {style: `width:${S.energy}%`})),
-      el("p", {style:"font-size:11px;color:#666;margin:6px 0 0"}, `${S.energy}% — ${S.energy>70?"rested":S.energy>40?"tired":"burnt out"}`)
+      el("div", {class:"meter"}, el("div", {style: `width:${S.energy}%;background:${S.energy<30?"#c44":S.energy<50?"#d29900":"#222"}`})),
+      el("p", {style:"font-size:11px;color:#666;margin:6px 0 0"}, `${S.energy}% — ${S.energy>=70?"rested":S.energy>=50?"a bit tired":S.energy>=30?"tired":S.energy>=15?"very tired":"exhausted"}`)
     )
   ));
 
@@ -1623,15 +1647,18 @@ function renderTour() {
     c.appendChild(el("div", {class:"empty"}, "Need some fans to start booking. Write & ship an EP first."));
   } else {
     for (const v of availVenues) {
-      const expected = (v.city === 'hometown' ? S.fans * 0.10 : S.fans * 0.04) + 30;
+      const eCost = energyCostForVenue(v.cap, false);
+      const tiredMult = tiredMultiplier(S.energy);
+      const expected = ((v.city === 'hometown' ? S.fans * 0.10 : S.fans * 0.04) + 30) * tiredMult;
       const projAtt = Math.min(v.cap, Math.round(expected));
       const projPct = Math.round(projAtt / v.cap * 100);
       const projCash = v.gtee + projAtt * 5;
+      const tiredHint = tiredMult < 1 ? ` (tired -${Math.round((1-tiredMult)*100)}%)` : '';
       c.appendChild(el("div", {class:"venue-card"},
         el("div", {class:"venue-info"},
           el("div", {class:"venue-name"}, `${v.name}`),
-          el("div", {class:"venue-meta"}, `${v.city === 'hometown' ? 'Home' : v.city} · cap ${v.cap} · $${v.gtee} guarantee`),
-          el("div", {class:"venue-proj"}, `~${projAtt} (${projPct}%) projected · ${dollars(projCash)} expected`)
+          el("div", {class:"venue-meta"}, `${v.city === 'hometown' ? 'Home' : v.city} · cap ${v.cap} · $${v.gtee} guarantee · -${eCost} energy`),
+          el("div", {class:"venue-proj"}, `~${projAtt} (${projPct}%)${tiredHint} · ${dollars(projCash)} expected`)
         ),
         el("button", {class:"btn small", onclick: () => bookGig(v.id)}, "Book")
       ));
@@ -1649,11 +1676,15 @@ function renderTour() {
         const v = VENUES.find(x => x.id === vid);
         return sum + v.gtee + t.bonusPerGig;
       }, 0);
+      const totalEnergy = t.venueIds.reduce((sum, vid) => {
+        const v = VENUES.find(x => x.id === vid);
+        return sum + energyCostForVenue(v.cap, true);
+      }, 0);
       const stopList = t.venueIds.map(vid => VENUES.find(x => x.id === vid).city).join(' → ');
       c.appendChild(el("div", {class:"venue-card"},
         el("div", {class:"venue-info"},
           el("div", {class:"venue-name"}, t.name),
-          el("div", {class:"venue-meta"}, `${t.venueIds.length} shows over ${t.weeks} weeks`),
+          el("div", {class:"venue-meta"}, `${t.venueIds.length} shows over ${t.weeks} weeks · -${totalEnergy} energy total`),
           el("div", {class:"venue-proj"}, `${stopList} · $${totalGtee} total guarantees`)
         ),
         el("button", {class:"btn small", onclick: () => bookTour(t.id)}, "Book tour")
