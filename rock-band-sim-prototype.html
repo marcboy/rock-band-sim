@@ -329,6 +329,35 @@
   .rename-input:focus {
     outline: none; border-color: #1d6dd6;
   }
+  /* Gig & venue cards */
+  .gig-card {
+    display: flex; gap: 12px;
+    border: 1px solid #ddd; border-radius: 12px;
+    padding: 12px; margin-bottom: 8px;
+    background: #fff;
+  }
+  .gig-cal {
+    background: #222; color: #fff; border-radius: 8px;
+    width: 54px; padding: 8px 6px; text-align: center;
+    flex-shrink: 0;
+  }
+  .gig-cal-week { font-size: 18px; font-weight: 700; line-height: 1; }
+  .gig-cal-year { font-size: 10px; opacity: 0.7; margin-top: 2px; }
+  .gig-info { flex: 1; min-width: 0; }
+  .gig-venue { font-size: 14px; font-weight: 700; color: #222; }
+  .gig-meta { font-size: 11px; color: #666; margin-top: 2px; }
+  .gig-sub { font-size: 11px; color: #1d6dd6; margin-top: 4px; font-weight: 600; }
+  .venue-card {
+    display: flex; gap: 10px; align-items: center;
+    border: 1px solid #ddd; border-radius: 12px;
+    padding: 12px; margin-bottom: 8px;
+    background: #fff;
+  }
+  .venue-info { flex: 1; min-width: 0; }
+  .venue-name { font-size: 14px; font-weight: 700; color: #222; }
+  .venue-meta { font-size: 11px; color: #666; margin-top: 2px; }
+  .venue-proj { font-size: 11px; color: #22a06b; margin-top: 4px; font-weight: 600; }
+  .venue-card .btn.small { flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -344,6 +373,7 @@
       <button class="tab" data-tab="dashboard"><div class="dot"></div><div>Band</div></button>
       <button class="tab" data-tab="studio"><div class="dot"></div><div>Studio</div></button>
       <button class="tab" data-tab="albums"><div class="dot"></div><div>Albums</div></button>
+      <button class="tab" data-tab="tour"><div class="dot"></div><div>Tour</div></button>
       <button class="tab" data-tab="charts"><div class="dot"></div><div>Charts</div></button>
     </div>
   </div>
@@ -356,8 +386,8 @@
 "use strict";
 
 // -------- VERSION --------
-const APP_VERSION = "v0.5.1";
-const APP_BUILD = "2026-05-20 21:30 UTC";
+const APP_VERSION = "v0.6.0";
+const APP_BUILD = "2026-05-20 21:40 UTC";
 
 // -------- STATE --------
 const initialState = () => ({
@@ -372,6 +402,7 @@ const initialState = () => ({
   albums: [],           // {id, name, releasedWeek, releasedYear, quality, tracks:[songId], lifetimeSales, weeklySales: [{week, units}], fansAdded}
   inProgressAlbum: null,// {name, tracks:[songIds], producer}
   pendingTask: null,    // {type:'write_song'|'record_song', weeksLeft, target}
+  pendingGigs: [],      // {weekIdx, venue, city, capacity, guarantee, type, tourName?}
   currentNews: null,    // {headline, kind, fanPct, salesMult, appliedFans, week, year}
   majorEvents: [],      // {weekIdx, label, kind, type} for Charts overlay
   log: [],              // {week, year, body, sub, kind}
@@ -597,6 +628,13 @@ function advanceWeek() {
   if (S.week >= 52) { S.week = 1; S.year += 1; }
   else S.week += 1;
 
+  // Resolve any gigs landing this week
+  if (S.pendingGigs && S.pendingGigs.length > 0) {
+    const due = S.pendingGigs.filter(g => g.weekIdx === weekIndex());
+    for (const gig of due) resolveGig(gig);
+    S.pendingGigs = S.pendingGigs.filter(g => g.weekIdx !== weekIndex());
+  }
+
   // Roll this week's newspaper story
   S.currentNews = rollNews();
   if (S.currentNews) {
@@ -762,6 +800,108 @@ function shipAlbum() {
   S.songs = S.songs.filter(s => s.state !== "recorded");
   releaseAlbum(album);
   save(); render();
+}
+
+// -------- VENUES & TOURS --------
+const VENUES = [
+  { id: 'coffee',    name: 'Coffee Shop Open Mic',  city: 'hometown', cap: 60,    gtee: 100,   minFans: 0 },
+  { id: 'bar',       name: 'Dive Bar',              city: 'hometown', cap: 180,   gtee: 300,   minFans: 0 },
+  { id: 'smallclub', name: 'The Bunker',            city: 'Austin',   cap: 350,   gtee: 700,   minFans: 200 },
+  { id: 'midclub',   name: 'Mohawk',                city: 'Austin',   cap: 800,   gtee: 1500,  minFans: 2000 },
+  { id: 'sfclub',    name: 'Bottom of the Hill',    city: 'SF',       cap: 350,   gtee: 900,   minFans: 1000 },
+  { id: 'theatre',   name: 'The Echo',              city: 'LA',       cap: 1500,  gtee: 3000,  minFans: 8000 },
+  { id: 'bigclub',   name: 'Webster Hall',          city: 'NYC',      cap: 1400,  gtee: 3500,  minFans: 10000 },
+  { id: 'bigvenue',  name: 'Brooklyn Steel',        city: 'NYC',      cap: 3500,  gtee: 7500,  minFans: 25000 },
+  { id: 'arena',     name: 'Forum Arena',           city: 'LA',       cap: 10000, gtee: 25000, minFans: 100000 },
+];
+
+const TOURS = [
+  { id: 'tx-loop',    name: 'Texas Three-City Loop',  venueIds: ['bar','smallclub','smallclub'],    weeks: 3, minFans: 200,   bonusPerGig: 150 },
+  { id: 'midwest',    name: 'Midwest Run',            venueIds: ['smallclub','midclub','smallclub','midclub'], weeks: 4, minFans: 2000, bonusPerGig: 300 },
+  { id: 'westcoast',  name: 'West Coast Swing',       venueIds: ['midclub','sfclub','theatre','sfclub'], weeks: 4, minFans: 8000, bonusPerGig: 600 },
+  { id: 'nationwide', name: 'Nationwide Tour',        venueIds: ['theatre','bigclub','theatre','bigclub','bigvenue'], weeks: 5, minFans: 15000, bonusPerGig: 1000 },
+];
+
+function nextAvailableWeek() {
+  let w = weekIndex() + 1;
+  while ((S.pendingGigs || []).some(g => g.weekIdx === w)) w++;
+  return w;
+}
+
+function bookGig(venueId) {
+  const v = VENUES.find(x => x.id === venueId);
+  if (!v) return;
+  if (S.fans < v.minFans) { alert(`Need ${fmt(v.minFans)} fans to book ${v.name}.`); return; }
+  if (!S.pendingGigs) S.pendingGigs = [];
+  const w = nextAvailableWeek();
+  S.pendingGigs.push({
+    weekIdx: w,
+    venue: v.name, city: v.city,
+    capacity: v.cap, guarantee: v.gtee,
+    type: 'gig',
+  });
+  const yr = Math.floor((w-1)/52)+1, wk = ((w-1)%52)+1;
+  pushLog(weekLabel(), `Booked ${v.name}, ${v.city}`,
+    `Y${yr} W${wk} · cap ${v.cap} · $${v.gtee} guarantee`, "neutral");
+  save(); render();
+}
+
+function bookTour(tourId) {
+  const t = TOURS.find(x => x.id === tourId);
+  if (!t) return;
+  if (S.fans < t.minFans) { alert(`Need ${fmt(t.minFans)} fans for ${t.name}.`); return; }
+  if (!S.pendingGigs) S.pendingGigs = [];
+  let w = weekIndex() + 1;
+  for (const venueId of t.venueIds) {
+    while (S.pendingGigs.some(g => g.weekIdx === w)) w++;
+    const v = VENUES.find(x => x.id === venueId);
+    S.pendingGigs.push({
+      weekIdx: w,
+      venue: v.name, city: v.city,
+      capacity: v.cap, guarantee: v.gtee + t.bonusPerGig,
+      type: 'tour', tourName: t.name,
+    });
+    w++;
+  }
+  pushLog(weekLabel(), `Booked tour: ${t.name}`,
+    `${t.venueIds.length} shows over ${t.weeks} weeks`, "neutral");
+  save(); render();
+}
+
+function resolveGig(gig) {
+  // Local pull: 10% of fans in hometown, ~4% in other cities (no touring multi-market yet)
+  const isHome = gig.city === 'hometown';
+  const reachPct = isHome ? 0.10 : 0.04;
+  const expected = S.fans * reachPct + 30 + rand(0, 60);
+  const attendance = Math.min(gig.capacity, Math.max(5, Math.round(expected)));
+  const attPct = attendance / gig.capacity;
+  // Cash: guarantee + $5/attendee door split
+  const cash = gig.guarantee + attendance * 5;
+  S.cash += cash;
+  // New fans: ~4% of attendees convert
+  const newFans = Math.round(attendance * 0.04);
+  S.fans += newFans;
+  // Log it
+  const attDesc = attPct >= 0.95 ? 'sold out' :
+                  attPct >= 0.70 ? 'strong turnout' :
+                  attPct >= 0.45 ? 'decent crowd' :
+                                   'sparse crowd';
+  const kind = attPct >= 0.7 ? 'win' : attPct < 0.3 ? 'bad' : 'neutral';
+  pushLog(weekLabel(),
+    `🎸 Played ${gig.venue}, ${gig.city === 'hometown' ? 'home' : gig.city}`,
+    `${attDesc} · ${attendance}/${gig.capacity} · +${fmt(newFans)} fans · ${dollars(cash)}${gig.tourName ? ' · ' + gig.tourName : ''}`,
+    kind);
+  // Mark larger shows as major events on Charts
+  if (gig.capacity >= 1000) {
+    if (!S.majorEvents) S.majorEvents = [];
+    S.majorEvents.push({
+      weekIdx: gig.weekIdx,
+      label: `Played ${gig.venue} (${attendance}/${gig.capacity})`,
+      kind: kind === 'win' ? 'win' : 'bad',
+      type: 'gig',
+    });
+    if (S.majorEvents.length > 100) S.majorEvents.shift();
+  }
 }
 
 // -------- WEEKLY NEWS --------
@@ -1439,6 +1579,98 @@ function buildLineChart({values, events, width, height, color, currentWeekIdx, v
   return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;">${parts.join('')}</svg>`;
 }
 
+function renderTour() {
+  const c = el("div", {class:"screen"});
+  const upcoming = [...(S.pendingGigs || [])].sort((a,b) => a.weekIdx - b.weekIdx);
+
+  c.appendChild(el("div", {style:"padding-top:8px"},
+    el("h1", {style:"margin:0;font-size:24px;font-weight:700"}, "Tour"),
+    el("p", {style:"margin:4px 0 0;font-size:12px;color:#888"},
+      `${upcoming.length} gig${upcoming.length===1?"":"s"} booked · ${fmt(S.fans)} fans drives venue size`)
+  ));
+
+  // --- UPCOMING ---
+  c.appendChild(el("h3", {class:"section"}, "Upcoming gigs"));
+  if (upcoming.length === 0) {
+    c.appendChild(el("div", {class:"empty"}, "No gigs booked. Pick one below."));
+  } else {
+    for (const g of upcoming) {
+      const wa = g.weekIdx - weekIndex();
+      const yr = Math.floor((g.weekIdx-1)/52)+1;
+      const wk = ((g.weekIdx-1)%52)+1;
+      const expected = (g.city === 'hometown' ? S.fans * 0.10 : S.fans * 0.04) + 30;
+      const projAtt = Math.min(g.capacity, Math.round(expected));
+      const projPct = Math.round(projAtt / g.capacity * 100);
+      c.appendChild(el("div", {class:"gig-card"},
+        el("div", {class:"gig-cal"},
+          el("div", {class:"gig-cal-week"}, `W${wk}`),
+          el("div", {class:"gig-cal-year"}, `Y${yr}`)
+        ),
+        el("div", {class:"gig-info"},
+          el("div", {class:"gig-venue"}, `${g.venue}`),
+          el("div", {class:"gig-meta"}, `${g.city === 'hometown' ? 'Home' : g.city} · cap ${g.capacity} · $${g.guarantee} guarantee`),
+          el("div", {class:"gig-sub"},
+            `${wa === 1 ? "Next week" : wa + " weeks away"} · projected ~${projAtt} (${projPct}%)${g.tourName ? ' · ' + g.tourName : ''}`)
+        )
+      ));
+    }
+  }
+
+  // --- BOOK A GIG ---
+  c.appendChild(el("h3", {class:"section"}, "Book a single gig"));
+  const availVenues = VENUES.filter(v => S.fans >= v.minFans);
+  if (availVenues.length === 0) {
+    c.appendChild(el("div", {class:"empty"}, "Need some fans to start booking. Write & ship an EP first."));
+  } else {
+    for (const v of availVenues) {
+      const expected = (v.city === 'hometown' ? S.fans * 0.10 : S.fans * 0.04) + 30;
+      const projAtt = Math.min(v.cap, Math.round(expected));
+      const projPct = Math.round(projAtt / v.cap * 100);
+      const projCash = v.gtee + projAtt * 5;
+      c.appendChild(el("div", {class:"venue-card"},
+        el("div", {class:"venue-info"},
+          el("div", {class:"venue-name"}, `${v.name}`),
+          el("div", {class:"venue-meta"}, `${v.city === 'hometown' ? 'Home' : v.city} · cap ${v.cap} · $${v.gtee} guarantee`),
+          el("div", {class:"venue-proj"}, `~${projAtt} (${projPct}%) projected · ${dollars(projCash)} expected`)
+        ),
+        el("button", {class:"btn small", onclick: () => bookGig(v.id)}, "Book")
+      ));
+    }
+  }
+
+  // --- BOOK A TOUR ---
+  c.appendChild(el("h3", {class:"section"}, "Tour packages"));
+  const availTours = TOURS.filter(t => S.fans >= t.minFans);
+  if (availTours.length === 0) {
+    c.appendChild(el("div", {class:"empty"}, "Tour offers unlock as you grow.  Try a single gig first."));
+  } else {
+    for (const t of availTours) {
+      const totalGtee = t.venueIds.reduce((sum, vid) => {
+        const v = VENUES.find(x => x.id === vid);
+        return sum + v.gtee + t.bonusPerGig;
+      }, 0);
+      const stopList = t.venueIds.map(vid => VENUES.find(x => x.id === vid).city).join(' → ');
+      c.appendChild(el("div", {class:"venue-card"},
+        el("div", {class:"venue-info"},
+          el("div", {class:"venue-name"}, t.name),
+          el("div", {class:"venue-meta"}, `${t.venueIds.length} shows over ${t.weeks} weeks`),
+          el("div", {class:"venue-proj"}, `${stopList} · $${totalGtee} total guarantees`)
+        ),
+        el("button", {class:"btn small", onclick: () => bookTour(t.id)}, "Book tour")
+      ));
+    }
+  }
+
+  // Locked venues hint
+  const lockedVenue = VENUES.find(v => S.fans < v.minFans);
+  if (lockedVenue) {
+    c.appendChild(el("p", {style:"font-size:11px;color:#aaa;margin-top:14px;text-align:center"},
+      `Next venue unlocks at ${fmt(lockedVenue.minFans)} fans: ${lockedVenue.name} (${lockedVenue.cap} cap)`));
+  }
+
+  return c;
+}
+
 function renderCharts() {
   const c = el("div", {class:"screen"});
   const currentWeekIdx = weekIndex();
@@ -1634,7 +1866,7 @@ function render() {
   const app = document.getElementById("app");
   app.innerHTML = "";
   // Nav
-  const titles = { dashboard: "Band", studio: "Studio", albums: "Albums", charts: "Charts" };
+  const titles = { dashboard: "Band", studio: "Studio", albums: "Albums", tour: "Tour", charts: "Charts" };
   app.appendChild(el("div", {class:"nav"}, titles[S.tab],
     el("button", {class:"meta meta-btn",
       onclick: () => { savesModalOpen = true; render(); }},
@@ -1644,6 +1876,7 @@ function render() {
   if (S.tab === "dashboard") screen = renderDashboard();
   else if (S.tab === "studio") screen = renderStudio();
   else if (S.tab === "albums") screen = renderAlbums();
+  else if (S.tab === "tour") screen = renderTour();
   else screen = renderCharts();
   app.appendChild(screen);
 
