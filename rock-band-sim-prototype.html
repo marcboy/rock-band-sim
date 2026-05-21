@@ -311,6 +311,24 @@
   .ev-body { flex: 1; min-width: 0; }
   .ev-label { font-size: 13px; font-weight: 600; color: #222; line-height: 1.3; }
   .ev-when { font-size: 11px; color: #888; margin-top: 2px; }
+  /* Rename band name */
+  .band-name-edit { cursor: pointer; }
+  .band-name-edit .edit-hint {
+    font-size: 14px; color: #ccc; font-weight: 400;
+    margin-left: 6px; vertical-align: middle;
+    transition: color 0.15s;
+  }
+  .band-name-edit:hover .edit-hint { color: #666; }
+  .rename-input {
+    width: 100%; padding: 12px 14px;
+    font-size: 16px; font-family: inherit;
+    border: 1.5px solid #222; border-radius: 10px;
+    margin-bottom: 12px;
+    background: #fff; color: #222;
+  }
+  .rename-input:focus {
+    outline: none; border-color: #1d6dd6;
+  }
 </style>
 </head>
 <body>
@@ -338,8 +356,8 @@
 "use strict";
 
 // -------- VERSION --------
-const APP_VERSION = "v0.5.0";
-const APP_BUILD = "2026-05-20 21:25 UTC";
+const APP_VERSION = "v0.5.1";
+const APP_BUILD = "2026-05-20 21:30 UTC";
 
 // -------- STATE --------
 const initialState = () => ({
@@ -374,6 +392,7 @@ const SLOT_PREFIX = "rockBandSimSlot_v1_";
 const SLOT_IDS = [1, 2, 3];
 let activeSlot = 1;
 let savesModalOpen = false;
+let renameModalOpen = false;
 
 const slotKey = (n) => SLOT_PREFIX + n;
 
@@ -1106,7 +1125,12 @@ function renderDashboard() {
   // Title block
   c.appendChild(el("div", {style: "padding-top:8px"},
     el("p", {class:"label", style:"margin-bottom:2px"}, `WEEK ${S.week} · YEAR ${S.year}`),
-    el("h1", {style:"margin:0;font-size:28px;font-weight:700"}, S.bandName),
+    el("h1", {class:"band-name-edit", style:"margin:0;font-size:28px;font-weight:700",
+      onclick: () => { renameModalOpen = true; render(); },
+      title: "Tap to rename"},
+      S.bandName,
+      el("span", {class:"edit-hint"}, " ✎")
+    ),
     el("p", {style:"margin:4px 0 0;font-size:13px;color:#666"}, S.genre)
   ));
 
@@ -1488,6 +1512,51 @@ function renderCharts() {
   return c;
 }
 
+function saveBandName() {
+  const input = document.getElementById("rename-input");
+  if (!input) return;
+  const newName = input.value.trim();
+  if (newName && newName.length > 0) {
+    const oldName = S.bandName;
+    S.bandName = newName.slice(0, 40);
+    if (oldName !== S.bandName) {
+      pushLog(weekLabel(), `Band renamed to "${S.bandName}"`, oldName ? `Previously: ${oldName}` : "", "neutral");
+    }
+    save();
+  }
+  renameModalOpen = false;
+  render();
+}
+
+function renderRenameModal() {
+  if (!renameModalOpen) return null;
+  // Focus the input after the modal mounts
+  setTimeout(() => {
+    const input = document.getElementById("rename-input");
+    if (input) { input.focus(); input.select(); }
+  }, 0);
+  return el("div", {class:"event-modal-bg", onclick: (e) => {
+    if (e.target.classList.contains("event-modal-bg")) { renameModalOpen = false; render(); }
+  }},
+    el("div", {class:"event-modal"},
+      el("h2", {}, "Band name"),
+      el("p", {}, "What's the band called?"),
+      el("input", {type:"text", id:"rename-input", class:"rename-input",
+        value: S.bandName, maxlength: 40,
+        onkeydown: (e) => {
+          if (e.key === "Enter") { e.preventDefault(); saveBandName(); }
+          if (e.key === "Escape") { renameModalOpen = false; render(); }
+        }
+      }),
+      el("div", {class:"event-choices"},
+        el("button", {onclick: saveBandName}, "Save"),
+        el("button", {style:"background:transparent;border:1px solid #888;color:#666",
+          onclick: () => { renameModalOpen = false; render(); }}, "Cancel")
+      )
+    )
+  );
+}
+
 function renderEventModal() {
   if (!S.pendingEvent) return null;
   const ev = S.pendingEvent;
@@ -1585,6 +1654,10 @@ function render() {
   // Saves modal
   const saves = renderSavesModal();
   if (saves) app.appendChild(saves);
+
+  // Rename modal
+  const rename = renderRenameModal();
+  if (rename) app.appendChild(rename);
 
   // Update tab states
   document.querySelectorAll(".tab").forEach(t => {
