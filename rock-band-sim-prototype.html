@@ -386,8 +386,31 @@
 "use strict";
 
 // -------- VERSION --------
-const APP_VERSION = "v0.8.2";
-const APP_BUILD = "2026-05-22 09:08 PDT";
+const APP_VERSION = "v0.9.0";
+const APP_BUILD = "2026-05-22 09:15 PDT";
+
+// Optional global load counter (uses abacus.jasoncameron.dev — fails gracefully if offline)
+let appLoadCount = null;
+(async () => {
+  try {
+    const NS = "marcboy-rock-band-sim";
+    const KEY = "loads";
+    const wasCounted = localStorage.getItem("rbs_counted_v1") === "1";
+    const url = wasCounted
+      ? `https://abacus.jasoncameron.dev/get/${NS}/${KEY}`
+      : `https://abacus.jasoncameron.dev/hit/${NS}/${KEY}`;
+    const r = await fetch(url);
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data && typeof data.value === "number") {
+      localStorage.setItem("rbs_counted_v1", "1");
+      appLoadCount = data.value;
+      try { render(); } catch(e) {}
+    }
+  } catch (e) {
+    // Counter is optional — silently ignore network/CORS errors
+  }
+})();
 
 // -------- STATE --------
 const initialState = () => ({
@@ -1568,9 +1591,10 @@ function renderDashboard() {
   c.appendChild(el("button", {class:"btn", style:"margin-top:18px", onclick: () => advanceWeek()},
     "Advance to next week ▸"));
 
-  // Version footer
+  // Version footer (build + cumulative load counter when available)
+  const loadSuffix = appLoadCount !== null ? ` · ${appLoadCount.toLocaleString()} loads` : "";
   c.appendChild(el("p", {style:"text-align:center;font-size:10px;color:#aaa;margin:18px 0 4px;letter-spacing:0.5px"},
-    `${APP_VERSION} · ${APP_BUILD}`));
+    `${APP_VERSION} · ${APP_BUILD}${loadSuffix}`));
 
   return c;
 }
