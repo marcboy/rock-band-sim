@@ -386,8 +386,8 @@
 "use strict";
 
 // -------- VERSION --------
-const APP_VERSION = "v0.8.0";
-const APP_BUILD = "2026-05-20 22:10 UTC";
+const APP_VERSION = "v0.8.1";
+const APP_BUILD = "2026-05-20 22:15 UTC";
 
 // -------- STATE --------
 const initialState = () => ({
@@ -1746,15 +1746,30 @@ function buildLineChart({values, events, width, height, color, currentWeekIdx, v
     parts.push(`<line x1="${padding.left}" y1="${y}" x2="${width-padding.right}" y2="${y}" stroke="#eee"/>`);
     parts.push(`<text x="${padding.left-6}" y="${y+3}" font-size="9" fill="#aaa" text-anchor="end">${fmt(val)}</text>`);
   }
-  // Event markers (vertical dashed lines)
+  // Event markers — vertical dashed line + shaped marker at top so each kind is clear
   const visibleEvents = (events || []).filter(e => e.weekIdx >= firstWeekIdx && e.weekIdx <= currentWeekIdx);
   for (const ev of visibleEvents) {
     const idx = ev.weekIdx - firstWeekIdx;
     const x = xFor(idx);
-    const c = ev.kind === "win" ? "#22a06b" : ev.kind === "bad" ? "#c44" : ev.kind === "release" ? "#1d6dd6" : "#888";
-    parts.push(`<line x1="${x}" y1="${padding.top}" x2="${x}" y2="${height-padding.bottom}" stroke="${c}" stroke-dasharray="2 3" opacity="0.55"/>`);
+    const color = ev.kind === "win" ? "#22a06b"
+                : ev.kind === "bad" ? "#c44"
+                : ev.kind === "release" ? "#1d6dd6"
+                : "#888";
+    // dashed line
+    parts.push(`<line x1="${x}" y1="${padding.top}" x2="${x}" y2="${height-padding.bottom}" stroke="${color}" stroke-dasharray="2 3" opacity="0.7"/>`);
+    // marker on top — distinct shape per kind so they're easy to scan
+    const my = padding.top - 2;
     if (ev.kind === "release") {
-      parts.push(`<circle cx="${x}" cy="${padding.top}" r="3.5" fill="${c}"/>`);
+      // blue circle for releases
+      parts.push(`<circle cx="${x}" cy="${my}" r="4" fill="${color}"/>`);
+    } else if (ev.kind === "win") {
+      // green up-triangle for wins
+      parts.push(`<polygon points="${x},${my-4} ${x-4},${my+3} ${x+4},${my+3}" fill="${color}"/>`);
+    } else if (ev.kind === "bad") {
+      // red down-triangle for setbacks
+      parts.push(`<polygon points="${x},${my+4} ${x-4},${my-3} ${x+4},${my-3}" fill="${color}"/>`);
+    } else {
+      parts.push(`<circle cx="${x}" cy="${my}" r="3" fill="${color}"/>`);
     }
   }
   // Polyline
@@ -1913,9 +1928,9 @@ function renderCharts() {
 
   // Legend
   c.appendChild(el("div", {class:"legend"},
-    el("span", {}, el("span", {class:"sw release"}), "Album release"),
-    el("span", {}, el("span", {class:"sw win"}), "Big win"),
-    el("span", {}, el("span", {class:"sw bad"}), "Setback")
+    el("span", {}, el("span", {class:"sw release"}), "● Album release"),
+    el("span", {}, el("span", {class:"sw win"}), "▲ Big win"),
+    el("span", {}, el("span", {class:"sw bad"}), "▼ Setback")
   ));
 
   // Major events list
