@@ -386,8 +386,8 @@
 "use strict";
 
 // -------- VERSION --------
-const APP_VERSION = "v0.9.0";
-const APP_BUILD = "2026-05-22 09:15 PDT";
+const APP_VERSION = "v0.9.1";
+const APP_BUILD = "2026-05-22 09:20 PDT";
 
 // Optional global load counter (uses abacus.jasoncameron.dev — fails gracefully if offline)
 let appLoadCount = null;
@@ -1660,6 +1660,10 @@ function renderStudio() {
         recorded.length < 4 ? `Need ${4 - recorded.length} more tracks` : "Master + ship ($1,000)")
     ));
   }
+
+  // Convenience: advance week without leaving the Studio
+  c.appendChild(el("button", {class:"btn", style:"margin-top:18px", onclick: () => advanceWeek()},
+    "Advance to next week ▸"));
 
   return c;
 }
