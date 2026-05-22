@@ -378,7 +378,7 @@
     </div>
   </div>
   <div class="hint">
-    Prototype: 5 tabs (Band / Studio / Albums / Tour / Charts) · 3 save slots · weekly news · <kbd>Space</kbd> advances a week · <kbd>R</kbd> resets · sim formulas from spec §6
+    Prototype: 5 tabs (Band / Studio / Albums / Tour / Charts) · 3 save slots · weekly news · vices &amp; rehab · parallel creative + production tasks · <kbd>Space</kbd> advances a week · <kbd>R</kbd> resets · sim formulas from spec §6
   </div>
 </div>
 
@@ -386,8 +386,8 @@
 "use strict";
 
 // -------- VERSION --------
-const APP_VERSION = "v0.6.1";
-const APP_BUILD = "2026-05-20 21:50 UTC";
+const APP_VERSION = "v0.8.0";
+const APP_BUILD = "2026-05-20 22:10 UTC";
 
 // -------- STATE --------
 const initialState = () => ({
@@ -398,10 +398,13 @@ const initialState = () => ({
   cash: 8000,
   energy: 80,
   morale: 75,
+  vices: 0,             // 0–100 — rock star lifestyle stat; high = scandal risk + worse performance
   songs: [],            // {id, name, hook, vibe, edge, state: 'demo'|'recording'|'recorded', progress}
   albums: [],           // {id, name, releasedWeek, releasedYear, quality, tracks:[songId], lifetimeSales, weeklySales: [{week, units}], fansAdded}
   inProgressAlbum: null,// {name, tracks:[songIds], producer}
-  pendingTask: null,    // {type:'write_song'|'record_song', weeksLeft, target}
+  pendingTask: null,    // legacy single-slot — migrated to creativeTask/productionTask on load
+  creativeTask: null,   // {type: 'write_song'|'rehab', weeksLeft}
+  productionTask: null, // {type: 'record_song'|'rehab', weeksLeft, target}
   pendingGigs: [],      // {weekIdx, venue, city, capacity, guarantee, type, tourName?}
   currentNews: null,    // {headline, kind, fanPct, salesMult, appliedFans, week, year}
   majorEvents: [],      // {weekIdx, label, kind, type} for Charts overlay
@@ -474,7 +477,29 @@ function load() {
     activeSlot = getActiveSlot();
     const raw = localStorage.getItem(slotKey(activeSlot));
     if (raw) S = JSON.parse(raw);
+    migrateTaskSlots();
   } catch(e) {}
+}
+
+// Migrate old single-slot pendingTask into the two-slot model
+function migrateTaskSlots() {
+  if (S.creativeTask === undefined) S.creativeTask = null;
+  if (S.productionTask === undefined) S.productionTask = null;
+  if (S.pendingTask && !S.creativeTask && !S.productionTask) {
+    const t = S.pendingTask;
+    if (t.type === "write_song") S.creativeTask = t;
+    else if (t.type === "record_song") S.productionTask = t;
+    else if (t.type === "rehab") {
+      S.creativeTask = t;
+      S.productionTask = { ...t, isRehabMirror: true };
+    }
+    S.pendingTask = null;
+  }
+}
+
+function isInRehab() {
+  return (S.creativeTask && S.creativeTask.type === "rehab")
+      || (S.productionTask && S.productionTask.type === "rehab");
 }
 
 function loadSlot(n) {
@@ -653,12 +678,15 @@ function advanceWeek() {
       S.currentNews.kind);
   }
 
-  // Progress pending task
-  if (S.pendingTask) {
-    S.pendingTask.weeksLeft -= 1;
-    if (S.pendingTask.weeksLeft <= 0) {
-      finishTask(S.pendingTask);
-      S.pendingTask = null;
+  // Progress pending tasks (creative + production slots run in parallel)
+  for (const slotName of ["creativeTask", "productionTask"]) {
+    const task = S[slotName];
+    if (!task) continue;
+    task.weeksLeft -= 1;
+    if (task.weeksLeft <= 0) {
+      // Rehab fills both slots but should only resolve once — skip the mirror
+      if (!task.isRehabMirror) finishTask(task);
+      S[slotName] = null;
     }
   }
 
@@ -723,18 +751,33 @@ function advanceWeek() {
   // Random event roll
   maybeRollEvent();
 
-  // Energy regen
-  S.energy = Math.min(100, S.energy + 6);
+  // Energy regen — reduced when vices are high
+  const regen = (S.vices || 0) >= 50 ? 3 : 6;
+  S.energy = Math.min(100, S.energy + regen);
+
+  // Vices decay slowly when not actively partying
+  S.vices = Math.max(0, (S.vices || 0) - 1);
 
   save();
   render();
 }
 
 function finishTask(task) {
+  if (task.type === "rehab") {
+    const before = S.vices;
+    S.vices = 0;
+    S.energy = Math.min(100, S.energy + 30);
+    S.morale = Math.min(100, S.morale + 15);
+    pushLog(weekLabel(), "Band finished rehab",
+      `Clean and refocused · vices ${before} → 0`, "win");
+    return;
+  }
   if (task.type === "write_song") {
-    const hook = randint(3, 9);
-    const vibe = randint(3, 9);
-    const edge = randint(3, 9);
+    // High vices = sloppier writing
+    const viceCap = (S.vices || 0) >= 50 ? 8 : 9;
+    const hook = randint(3, viceCap);
+    const vibe = randint(3, viceCap);
+    const edge = randint(3, 9);  // edge can survive lifestyle, sometimes thrives on it
     const song = {
       id: ++S.songCounter,
       name: nextSongTitle(),
@@ -760,22 +803,24 @@ function finishTask(task) {
 
 // -------- ACTIONS --------
 function writeSong() {
-  if (S.pendingTask) return alert("Already working on something this week.");
+  if (isInRehab()) return alert("Band is in rehab.");
+  if (S.creativeTask) return alert("Already writing a song this week.");
   if (S.cash < 500) return alert("Need $500 to write a song.");
   S.cash -= 500;
-  S.pendingTask = { type: "write_song", weeksLeft: 1 };
+  S.creativeTask = { type: "write_song", weeksLeft: 1 };
   pushLog(weekLabel(), "Started writing a new song", "$500 spent · 1 week", "neutral");
   save(); render();
 }
 
 function recordSong(songId) {
-  if (S.pendingTask) return alert("Already working on something this week.");
+  if (isInRehab()) return alert("Band is in rehab.");
+  if (S.productionTask) return alert("Already recording a song this week.");
   if (S.cash < 500) return alert("Need $500 to record a song.");
   const song = S.songs.find(s => s.id === songId);
   if (!song) return;
   S.cash -= 500;
   song.state = "recording";
-  S.pendingTask = { type: "record_song", weeksLeft: 1, target: songId };
+  S.productionTask = { type: "record_song", weeksLeft: 1, target: songId };
   pushLog(weekLabel(), `Recording "${song.name}"`, "$500 spent · 1 week", "neutral");
   save(); render();
 }
@@ -821,6 +866,86 @@ const TOURS = [
   { id: 'westcoast',  name: 'West Coast Swing',       venueIds: ['midclub','sfclub','theatre','sfclub'], weeks: 4, minFans: 8000, bonusPerGig: 600 },
   { id: 'nationwide', name: 'Nationwide Tour',        venueIds: ['theatre','bigclub','theatre','bigclub','bigvenue'], weeks: 5, minFans: 15000, bonusPerGig: 1000 },
 ];
+
+// -------- VICES SYSTEM --------
+function viceMultiplier(vices) {
+  if (vices >= 75) return 0.70;  // spiraling — performance tanks
+  if (vices >= 50) return 0.85;  // rockstar lifestyle
+  if (vices >= 25) return 0.95;  // indulging
+  return 1.0;                    // clean
+}
+
+function vicesLabel(v) {
+  if (v >= 75) return "spiraling";
+  if (v >= 50) return "rockstar lifestyle";
+  if (v >= 25) return "indulging";
+  if (v >= 1)  return "loosening up";
+  return "clean";
+}
+
+function vicesColor(v) {
+  if (v >= 75) return "#c44";
+  if (v >= 50) return "#d29900";
+  if (v >= 25) return "#888";
+  return "#22a06b";
+}
+
+function partyTonight() {
+  if ((S.vices || 0) >= 100) { alert("The band has hit rock bottom — needs rehab."); return; }
+  if (isInRehab()) { alert("Band is in rehab."); return; }
+  S.vices = Math.min(100, (S.vices || 0) + 12);
+  S.energy = Math.max(0, S.energy - 8);  // partying drains energy too
+
+  // Random instant outcome
+  const r = Math.random();
+  if (r < 0.15) {
+    // Lucky: wild creative night, song falls out
+    const hook = randint(4, 9), vibe = randint(4, 10), edge = randint(5, 10);
+    S.songs.push({ id: ++S.songCounter, name: nextSongTitle(), hook, vibe, edge, state: "demo" });
+    pushLog(weekLabel(), `🥂 Wild night turned productive`,
+      `New demo written in a haze · vices ${S.vices}`, "win");
+  } else if (r < 0.35 + (S.vices / 250)) {
+    // Scandal — chance scales with vices
+    const stories = [
+      "Frontman seen falling out of a cab at 4am",
+      "Band trashed a hotel room — bill: $3,400",
+      "Frontman picked a fight at a bar, ended up on TMZ",
+      "Drummer photographed sleeping in a fountain",
+      "Bassist arrested for public disturbance",
+      "Frontman missed an interview, said he 'lost track of time'",
+      "Manager furious after band missed soundcheck",
+    ];
+    const h = stories[randint(0, stories.length-1)];
+    const fanDelta = applyNewsFans(-0.015);
+    S.fans = Math.max(0, S.fans + fanDelta);
+    if (h.includes("$3,400")) S.cash -= 3400;
+    pushLog(weekLabel(), `📰 ${h}`,
+      `${fmt(fanDelta)} fans · vices ${S.vices}`, "bad");
+  } else if (r < 0.60) {
+    // Mostly fine
+    pushLog(weekLabel(), `🍻 Band partied hard`,
+      `Loosened up · vices ${S.vices}`, "neutral");
+  } else {
+    // Big night out, no consequences yet
+    pushLog(weekLabel(), `🥂 Big night out`,
+      `Morale boost · vices ${S.vices}`, "neutral");
+    S.morale = Math.min(100, S.morale + 4);
+  }
+  save();
+  render();
+}
+
+function startRehab() {
+  if (S.creativeTask || S.productionTask) { alert("Finish current tasks first."); return; }
+  if (S.cash < 5000) { alert("Need $5,000 for rehab."); return; }
+  S.cash -= 5000;
+  S.creativeTask = { type: "rehab", weeksLeft: 4 };
+  S.productionTask = { type: "rehab", weeksLeft: 4, isRehabMirror: true };
+  pushLog(weekLabel(), "Band checked into rehab",
+    "$5,000 · 4 weeks · vices reset on exit", "neutral");
+  save();
+  render();
+}
 
 function energyCostForVenue(cap, isTour) {
   let base;
@@ -891,7 +1016,8 @@ function resolveGig(gig) {
   const reachPct = isHome ? 0.10 : 0.04;
   // Tired bands underperform — applied BEFORE deducting this gig's energy
   const tiredMult = tiredMultiplier(S.energy);
-  const expected = (S.fans * reachPct + 30 + rand(0, 60)) * tiredMult;
+  const viceMult = viceMultiplier(S.vices || 0);
+  const expected = (S.fans * reachPct + 30 + rand(0, 60)) * tiredMult * viceMult;
   const attendance = Math.min(gig.capacity, Math.max(5, Math.round(expected)));
   const attPct = attendance / gig.capacity;
   // Cash: guarantee + $5/attendee door split
@@ -910,10 +1036,11 @@ function resolveGig(gig) {
                                    'sparse crowd';
   const kind = attPct >= 0.7 ? 'win' : attPct < 0.3 ? 'bad' : 'neutral';
   const tiredNote = tiredMult < 1 ? ` · tired (-${Math.round((1-tiredMult)*100)}% draw)` : '';
+  const viceNote = viceMult < 1 ? ` · ${vicesLabel(S.vices)} (-${Math.round((1-viceMult)*100)}%)` : '';
   const exhaustedNote = S.energy < 20 ? ' · band exhausted' : '';
   pushLog(weekLabel(),
     `🎸 Played ${gig.venue}, ${gig.city === 'hometown' ? 'home' : gig.city}`,
-    `${attDesc} · ${attendance}/${gig.capacity} · +${fmt(newFans)} fans · ${dollars(cash)} · -${energyCost} energy${tiredNote}${exhaustedNote}${gig.tourName ? ' · ' + gig.tourName : ''}`,
+    `${attDesc} · ${attendance}/${gig.capacity} · +${fmt(newFans)} fans · ${dollars(cash)} · -${energyCost} energy${tiredNote}${viceNote}${exhaustedNote}${gig.tourName ? ' · ' + gig.tourName : ''}`,
     kind);
   // Mark larger shows as major events on Charts
   if (gig.capacity >= 1000) {
@@ -1183,7 +1310,14 @@ function rollNews() {
   // ~85% chance of a real news story, ~15% chance of a "quiet week"
   const pool = NEWS_STORIES.filter(n => !n.cond || n.cond(S));
   const wantQuiet = Math.random() < 0.15;
-  const candidates = pool.filter(n => wantQuiet ? n.quiet : !n.quiet);
+  // High vices bias the news toward scandals
+  const scandalBias = (S.vices || 0) >= 50 && Math.random() < ((S.vices - 30) / 100);
+  let candidates;
+  if (scandalBias) {
+    candidates = pool.filter(n => n.k === "bad" && !n.quiet);
+  } else {
+    candidates = pool.filter(n => wantQuiet ? n.quiet : !n.quiet);
+  }
   const chosen = candidates.length > 0
     ? candidates[randint(0, candidates.length - 1)]
     : pool[randint(0, pool.length - 1)];
@@ -1333,15 +1467,50 @@ function renderDashboard() {
     )
   ));
 
-  // This week
+  // Vices card with action buttons
+  const vices = S.vices || 0;
+  const inRehabNow = isInRehab();
+  c.appendChild(el("div", {class:"card", style:"padding:14px"},
+    el("div", {style:"display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"},
+      el("p", {class:"label", style:"margin:0"}, "Lifestyle"),
+      el("p", {style:"font-size:11px;margin:0;color:" + vicesColor(vices) + ";font-weight:600;text-transform:uppercase;letter-spacing:1px"}, vicesLabel(vices))
+    ),
+    el("div", {class:"meter", style:"margin-bottom:8px"},
+      el("div", {style: `width:${vices}%;background:${vicesColor(vices)}`})),
+    inRehabNow
+      ? el("p", {style:"font-size:12px;color:#666;margin:0"},
+          `🏥 In rehab · ${(S.creativeTask || S.productionTask).weeksLeft} week${(S.creativeTask || S.productionTask).weeksLeft===1?"":"s"} left`)
+      : el("div", {style:"display:flex;gap:8px;margin-top:8px"},
+          el("button", {class:"btn small ghost", style:"flex:1",
+            onclick: partyTonight,
+            disabled: vices >= 100}, "Party tonight"),
+          vices >= 30
+            ? el("button", {class:"btn small", style:"flex:1",
+                onclick: startRehab,
+                disabled: S.cash < 5000 || !!S.creativeTask || !!S.productionTask},
+                "Rehab ($5K, 4w)")
+            : null
+        )
+  ));
+
+  // This week — show what's in each task slot
   c.appendChild(el("h3", {class:"section"}, "This week"));
-  if (S.pendingTask) {
-    const t = S.pendingTask;
-    const desc = t.type === "write_song"
-      ? `Writing a new song · ${t.weeksLeft} week${t.weeksLeft===1?"":"s"} left`
-      : `Recording a song · ${t.weeksLeft} week${t.weeksLeft===1?"":"s"} left`;
+  const taskDescriptions = [];
+  if (isInRehab()) {
+    const t = S.creativeTask || S.productionTask;
+    taskDescriptions.push(`🏥 Band in rehab · ${t.weeksLeft} week${t.weeksLeft===1?"":"s"} left`);
+  } else {
+    if (S.creativeTask) {
+      taskDescriptions.push(`✍️ Writing a new song · ${S.creativeTask.weeksLeft} week${S.creativeTask.weeksLeft===1?"":"s"} left`);
+    }
+    if (S.productionTask) {
+      const song = S.songs.find(s => s.id === S.productionTask.target);
+      taskDescriptions.push(`🎙 Recording${song ? ` "${song.name}"` : ''} · ${S.productionTask.weeksLeft} week${S.productionTask.weeksLeft===1?"":"s"} left`);
+    }
+  }
+  if (taskDescriptions.length > 0) {
     c.appendChild(el("div", {class:"card dashed"},
-      el("p", {style:"font-size:13px;font-weight:600;margin:0"}, desc)
+      ...taskDescriptions.map(d => el("p", {style:"font-size:13px;font-weight:600;margin:0 0 4px"}, d))
     ));
   } else if (S.songs.length === 0 && S.albums.length === 0) {
     c.appendChild(el("div", {class:"card dashed"},
@@ -1423,7 +1592,7 @@ function renderStudio() {
       el("p", {style:"font-size:13px;font-weight:600;margin:0"}, "Write a new song"),
       el("p", {style:"font-size:11px;color:#888;margin:2px 0 0"}, "1 week · $500")
     ),
-    el("button", {class:"btn small", onclick: writeSong, disabled: !!S.pendingTask || S.cash < 500}, "Write")
+    el("button", {class:"btn small", onclick: writeSong, disabled: !!S.creativeTask || isInRehab() || S.cash < 500}, "Write")
   ));
 
   // Songs list
@@ -1441,7 +1610,7 @@ function renderStudio() {
         ),
         el("div", {class: "state " + stateClass}, stateSym),
         s.state === "demo"
-          ? el("button", {class:"btn small ghost", onclick: () => recordSong(s.id), disabled: !!S.pendingTask || S.cash < 500}, "Record")
+          ? el("button", {class:"btn small ghost", onclick: () => recordSong(s.id), disabled: !!S.productionTask || isInRehab() || S.cash < 500}, "Record")
           : null
       ));
     }
