@@ -1,6 +1,6 @@
 # Rock Band Sim — Project Handoff
 
-*Everything you need to restart this project in a new Claude session or on another machine. Last updated May 22, 2026 · prototype version **v0.9.1**.*
+*Everything you need to restart this project in a new Claude session or on another machine. Last updated May 22, 2026 · prototype version **v0.9.2**.*
 
 **GitHub:** https://github.com/marcboy/rock-band-sim
 **Local path:** `/Users/marcboyer/Documents/Claude/projects/rock-band-sim/`
@@ -10,7 +10,8 @@
 
 ## Changelog
 
-- **v0.9.1** — "Advance to next week" button now also lives at the bottom of the Studio tab.
+- **v0.9.2** — "Advance to next week" button moved to the top of the Band tab (the bottom one stays); removed from the Studio tab.
+- **v0.9.1** — "Advance to next week" button briefly added at the bottom of the Studio tab (reverted in v0.9.2).
 - **v0.9.0** — Cumulative load counter in the version footer (via abacus.jasoncameron.dev; counts unique browsers).
 - **v0.8.2** — Build timestamps now use Pacific time (PDT/PST) instead of UTC.
 - **v0.8.1** — Chart events get distinct shaped markers per kind (● release, ▲ win, ▼ setback).
