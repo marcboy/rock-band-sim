@@ -1,17 +1,30 @@
 # Rock Band Sim — Project Handoff
 
-*Everything you need to restart this project in a new Claude session or on another machine. Last updated May 20, 2026 · prototype version **v0.3.0**.*
+*Everything you need to restart this project in a new Claude session or on another machine. Last updated May 22, 2026 · prototype version **v0.9.1**.*
 
 **GitHub:** https://github.com/marcboy/rock-band-sim
 **Local path:** `/Users/marcboyer/Documents/Claude/projects/rock-band-sim/`
+**Live URL** (if GitHub Pages enabled): `https://marcboy.github.io/rock-band-sim/`
 
 ---
 
 ## Changelog
 
+- **v0.9.1** — "Advance to next week" button now also lives at the bottom of the Studio tab.
+- **v0.9.0** — Cumulative load counter in the version footer (via abacus.jasoncameron.dev; counts unique browsers).
+- **v0.8.2** — Build timestamps now use Pacific time (PDT/PST) instead of UTC.
+- **v0.8.1** — Chart events get distinct shaped markers per kind (● release, ▲ win, ▼ setback).
+- **v0.8.0** — Parallel task slots: writing (creative) and recording (production) now run independently. Rehab fills both.
+- **v0.7.0** — Vices system: "Party tonight" (+vices, random outcome), "Rehab" ($5K / 4 weeks, resets vices), penalties to gigs / song quality / news at high vices.
+- **v0.6.1** — Gigs cost energy by venue size; tired band underperforms; energy meter color-coded.
+- **v0.6.0** — Tour tab with single-gig booking, multi-show tour packages, auto-resolution on advance week, attendance & cash projections.
+- **v0.5.1** — Tap band name on Dashboard to rename it (per-slot, persists).
+- **v0.5.0** — Charts tab: fans-over-time and weekly-sales line charts, event markers, Major Events list.
+- **v0.4.1** — News catalog expanded from 29 to 217 stories across 13 categories.
+- **v0.4.0** — Weekly newspaper headlines on the Dashboard; each story has fan and sales impact.
 - **v0.3.0** — 3 save slots with switcher modal in the nav. Legacy single-save data auto-migrates to Slot 1.
-- **v0.2.2** — Buzz feed is now scrollable in a fixed-height container; Dashboard layout no longer shifts as events accumulate.
-- **v0.2.1** — Fixed disabled buttons in Studio (HTML boolean-attribute bug — `setAttribute("disabled", false)` still disables the element).
+- **v0.2.2** — Buzz feed is now scrollable in a fixed-height container.
+- **v0.2.1** — Fixed disabled buttons in Studio (HTML boolean-attribute bug).
 - **v0.2.0** — Version footer added to Dashboard.
 - **v0.1.x** — Initial prototype with Band / Studio / Albums tabs, real sim formulas, headless playtest harness, 5 wireframes, full design spec.
 
@@ -137,20 +150,35 @@ Loop works. Numbers compound. But 11 albums in 2 years is way too many for reali
 4. **Reading-vs-doing ratio.** Spec is ~70/30 reading event cards vs. tuning numbers — needs playtest.
 5. **Failure tone.** Band breakup = sad cutscene, "what if" replay, or scoreboard entry?
 
-## 8. What's intentionally missing from the prototype
+## 8. What the prototype now does (current state at v0.9.1)
 
-- **Tour / gigs system** — wireframed but not built. This is the most important missing piece because gigs are the spec's early-game income source.
-- **Members & skills** — no member roster, no morale, no energy effects on outcomes. Song quality is random.
-- **Events beyond 3 sample cards** — only sync deal, blog write-up, gear breaks. Spec calls for ~50 cards by v1.
-- **Charts screen** — wireframed only.
-- **Member crises, label offers, sync licensing pipeline.**
-- **Audio, visuals, music** — none. This is a paper prototype with HTML chrome.
+**Five working tabs:**
+- **Band (Dashboard)** — KPIs (fans, lifetime sales, cash, energy, vices), This Week tasks, the weekly newspaper headline card, scrollable Buzz feed, Advance Week button, version + load count footer
+- **Studio** — Write song (creative slot), Record song (production slot), Master + Ship album, predicted first-week sales, Advance Week button at bottom
+- **Albums** — Discography with cover, sales sparkline, certifications, distance to next gold/platinum
+- **Tour** — Upcoming gigs list, book single venues (9 tiers from coffee shop to arena), book tour packages (4 bundled options), energy cost per gig, projected attendance
+- **Charts** — Fans over time line chart, weekly sales line chart, event markers (release ●, win ▲, setback ▼), Major Events list
 
-## 8a. What the prototype now *does* have (post-v0.1)
+**Systems:**
+- **Two-slot task model** — creative (writing) and production (recording) run in parallel; rehab fills both
+- **3 save slots** with switcher modal in the nav bar
+- **Editable band name** (tap the name on the Dashboard)
+- **Weekly newspaper** — 217 stories across 13 categories, picked weighted, with optional gating by fans/album-count
+- **Vices system** — Party button, Rehab button, scaling penalties to attendance / song quality / news bias at high vices
+- **Gig energy economy** — venues cost 5–25 energy; tired band gets attendance penalty
+- **Persistent localStorage** state per slot
+- **Cumulative app loads** counted via abacus.jasoncameron.dev (shown in footer)
 
-- **3 save slots** with a switcher modal. Tap the "Slot N · Y… W…" button at the top right of the nav to open it. Each slot stores an independent career; switching slots auto-saves the current one. Slots can be erased individually. Legacy single-slot saves migrate to Slot 1 on first load.
-- **Version & build timestamp** in a small footer on the Dashboard (e.g. `v0.3.0 · 2026-05-20 20:55 UTC`). Easy way to confirm which build is loaded.
-- **Scrollable Buzz feed** — fixed-height container holds up to 30 buzz items; Dashboard layout no longer shifts as events accumulate.
+## 9. What's intentionally missing from the prototype
+
+- **Member system** — no roster, no per-member skills, no morale tracking per person. Song quality is random (bounded by vices). The spec called for individual members with hook/vibe/edge contributions.
+- **Energy recovery moves** — only natural +6/week regen and rehab. No "rest at a hotel" or "spa weekend."
+- **Promotion spend** — gigs roll attendance from fans alone; can't pay for marketing boosts.
+- **Cancel-a-gig** — once booked, a gig must be played.
+- **Multiple markets** — every non-hometown city uses the same reach formula (4% of fans). No per-city fan distribution.
+- **Genre / scene reputation** — no opinion tracking.
+- **Audio, visuals, music** — paper prototype with HTML chrome only.
+- **Long-form events** — only 3 multi-week event cards (sync deal, gear breaks, blog feature). No label negotiations, tour offers from outside, member crises that span weeks.
 
 ## 9. Roadmap (lifted from spec §10, slightly revised)
 
@@ -189,7 +217,7 @@ Paste this in a fresh conversation to bring the next session up to speed:
 
 > I'm working on a rock band management sim game for iOS. It's a fantasy career-sim — the player manages a fictional band over a 10-year career. Every decision serves two compounding numbers: **albums sold** and **fan count**.
 >
-> The project is on GitHub at https://github.com/marcboy/rock-band-sim and locally at `/Users/marcboyer/Documents/Claude/projects/rock-band-sim/`. It contains: a 12-section design spec (`rock-band-sim-spec.md`), 5 SVG wireframes, a working HTML prototype (`rock-band-sim-prototype.html`) at v0.3.0 with the Band/Studio/Albums loop running and 3 save slots, and a Node.js playtest harness (`playtest.js`). **Read `HANDOFF.md` first** — it has the full context including the changelog, playtest findings, and balance decisions.
+> The project is on GitHub at https://github.com/marcboy/rock-band-sim and locally at `/Users/marcboyer/Documents/Claude/projects/rock-band-sim/`. It contains: a 12-section design spec (`rock-band-sim-spec.md`), 5 SVG wireframes, a working HTML prototype (`rock-band-sim-prototype.html`) at **v0.9.1** with the full 5-tab loop running (Band / Studio / Albums / Tour / Charts), and a Node.js playtest harness (`playtest.js`). **Read `HANDOFF.md` first** — it has the full context including the changelog, playtest findings, balance decisions, and what's currently built vs. missing.
 >
 > Today I want to: [pick one]
 > - Add the Tour & gigs system to the prototype (spec §5.7)
