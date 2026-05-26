@@ -1,6 +1,6 @@
 # Rock Band Sim — Project Handoff
 
-*Everything you need to restart this project in a new Claude session or on another machine. Last updated May 22, 2026 · prototype version **v0.9.3**.*
+*Everything you need to restart this project in a new Claude session or on another machine. Last updated May 22, 2026 · prototype version **v0.11.0**.*
 
 **GitHub:** https://github.com/marcboy/rock-band-sim
 **Local path:** `/Users/marcboyer/Documents/Claude/projects/rock-band-sim/`
@@ -10,6 +10,8 @@
 
 ## Changelog
 
+- **v0.11.0** — Real calendar dates everywhere. New games store a `startDate` (now); each in-game week is 7 real days. Dashboard header shows "WEEK OF MAY 22, 2026"; Tour calendar shows real day-of-week / day / month; Charts axis shows "May '26"; Major Events, Albums released, Slot picker all show real dates. Internal week counters stay the same; old saves backdate automatically.
+- **v0.10.0** — Albums tab expanded: each album now shows full tracklist (names + hook/vibe/edge stats), lifetime / this-week / peak sales, and a 26-week sales line chart. Albums shipped from this version on snapshot their song data; albums from earlier versions show a "names not saved" note instead.
 - **v0.9.3** — Top-of-Band Advance button shrunk and placed inline with the band name (right side of the title row).
 - **v0.9.2** — "Advance to next week" button moved to the top of the Band tab (the bottom one stays); removed from the Studio tab.
 - **v0.9.1** — "Advance to next week" button briefly added at the bottom of the Studio tab (reverted in v0.9.2).

@@ -358,6 +358,50 @@
   .venue-meta { font-size: 11px; color: #666; margin-top: 2px; }
   .venue-proj { font-size: 11px; color: #22a06b; margin-top: 4px; font-weight: 600; }
   .venue-card .btn.small { flex-shrink: 0; }
+  /* Detailed album cards (Albums tab) */
+  .album-card-full {
+    border: 1px solid #ddd; border-radius: 14px;
+    padding: 14px; margin-bottom: 12px;
+    background: #fff;
+  }
+  .track-list {
+    margin: 12px 0 0;
+    padding: 10px 12px;
+    background: #fafafa;
+    border-radius: 8px;
+    border: 1px solid #eee;
+  }
+  .track-list-title {
+    font-size: 10px; color: #888; letter-spacing: 1px;
+    text-transform: uppercase; font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .track-list-empty {
+    margin: 12px 0 0; padding: 10px 12px;
+    background: #fafafa; border-radius: 8px;
+    font-size: 11px; color: #aaa; text-align: center;
+  }
+  .track-row {
+    display: flex; gap: 8px; font-size: 12px;
+    padding: 3px 0; align-items: center;
+  }
+  .track-row + .track-row { border-top: 1px solid #f0f0f0; }
+  .track-num { color: #aaa; font-weight: 600; width: 22px; flex-shrink: 0; }
+  .track-name { flex: 1; color: #222; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .track-stats { color: #888; font-size: 10px; flex-shrink: 0; letter-spacing: 0.5px; }
+  .album-chart-wrap {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: #fafafa;
+    border-radius: 8px;
+    border: 1px solid #eee;
+  }
+  .album-chart-label {
+    font-size: 10px; color: #888; letter-spacing: 1px;
+    text-transform: uppercase; font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .album-chart { display: block; height: 60px; }
 </style>
 </head>
 <body>
@@ -386,8 +430,8 @@
 "use strict";
 
 // -------- VERSION --------
-const APP_VERSION = "v0.9.3";
-const APP_BUILD = "2026-05-22 09:40 PDT";
+const APP_VERSION = "v0.11.0";
+const APP_BUILD = "2026-05-22 10:05 PDT";
 
 // Optional global load counter (uses abacus.jasoncameron.dev — fails gracefully if offline)
 let appLoadCount = null;
@@ -417,6 +461,7 @@ const initialState = () => ({
   bandName: "Neon Coyotes",
   genre: "Garage rock · Austin, TX",
   week: 1, year: 1,
+  startDate: new Date().toISOString(), // Real date corresponding to Week 1
   fans: 0,
   cash: 8000,
   energy: 80,
@@ -479,6 +524,7 @@ function peekSlot(n) {
       bandName: data.bandName || "Unnamed band",
       week: data.week || 1,
       year: data.year || 1,
+      startDate: data.startDate || null,
       fans: data.fans || 0,
       cash: data.cash || 0,
       lifetimeSales: (data.albums || []).reduce((a, b) => a + (b.lifetimeSales || 0), 0),
@@ -501,7 +547,18 @@ function load() {
     const raw = localStorage.getItem(slotKey(activeSlot));
     if (raw) S = JSON.parse(raw);
     migrateTaskSlots();
+    migrateStartDate();
   } catch(e) {}
+}
+
+// For old saves that don't have a startDate, infer it from the current week index
+function migrateStartDate() {
+  if (!S.startDate) {
+    const weeksElapsed = Math.max(0, weekIndex() - 1);
+    const d = new Date();
+    d.setDate(d.getDate() - weeksElapsed * 7);
+    S.startDate = d.toISOString();
+  }
 }
 
 // Migrate old single-slot pendingTask into the two-slot model
@@ -574,7 +631,24 @@ const fmt = (n) => {
   return Math.round(n).toLocaleString();
 };
 const dollars = (n) => "$" + Math.round(n).toLocaleString();
-const weekLabel = () => `Y${S.year} W${S.week}`;
+
+// --- Real-calendar dates ---
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DOW = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
+function gameDate(weekIdx) {
+  const idx = weekIdx !== undefined ? weekIdx : weekIndex();
+  const start = new Date(S.startDate || new Date().toISOString());
+  const d = new Date(start);
+  d.setDate(d.getDate() + (idx - 1) * 7);
+  return d;
+}
+function formatDate(d) { return `${MONTHS_LONG[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; }
+function formatDateShort(d) { return `${MONTHS[d.getMonth()]} ${d.getDate()}`; }
+function formatDateMonth(d) { return `${MONTHS[d.getMonth()]} '${String(d.getFullYear()).slice(-2)}`; }
+function formatDateMid(d) { return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; }
+const weekLabel = () => formatDate(gameDate());
 
 function pushLog(when, body, sub, kind="neutral") {
   S.log.unshift({ when, body, sub, kind });
@@ -863,6 +937,8 @@ function shipAlbum() {
     quality,
     tracks: recorded.map(s => s.id),
     trackCount: recorded.length,
+    // Snapshot of song data so the Albums tab can show track names long after songs leave the backlog
+    songs: recorded.map(s => ({ id: s.id, name: s.name, hook: s.hook, vibe: s.vibe, edge: s.edge })),
   };
   // Remove used songs from backlog
   S.songs = S.songs.filter(s => s.state !== "recorded");
@@ -1005,9 +1081,8 @@ function bookGig(venueId) {
     capacity: v.cap, guarantee: v.gtee,
     type: 'gig',
   });
-  const yr = Math.floor((w-1)/52)+1, wk = ((w-1)%52)+1;
   pushLog(weekLabel(), `Booked ${v.name}, ${v.city}`,
-    `Y${yr} W${wk} · cap ${v.cap} · $${v.gtee} guarantee`, "neutral");
+    `${formatDateMid(gameDate(w))} · cap ${v.cap} · $${v.gtee} guarantee`, "neutral");
   save(); render();
 }
 
@@ -1445,7 +1520,7 @@ function renderDashboard() {
 
   // Title block — band name on the left, small Advance Week button on the right
   c.appendChild(el("div", {style: "padding-top:8px"},
-    el("p", {class:"label", style:"margin-bottom:2px"}, `WEEK ${S.week} · YEAR ${S.year}`),
+    el("p", {class:"label", style:"margin-bottom:2px"}, `WEEK OF ${formatDate(gameDate()).toUpperCase()}`),
     el("div", {style: "display:flex;align-items:center;justify-content:space-between;gap:10px"},
       el("h1", {class:"band-name-edit", style:"margin:0;font-size:28px;font-weight:700;flex:1;min-width:0;line-height:1.1",
         onclick: () => { renameModalOpen = true; render(); },
@@ -1710,38 +1785,71 @@ function renderAlbums() {
       "No releases yet. Write 6 songs, record them, then ship in the Studio."));
   } else {
     for (const a of S.albums) {
-      // sparkline from weeklySales
-      const series = a.weeklySales.slice(-12);
+      // Sales chart from weeklySales — last 26 weeks
+      const series = (a.weeklySales || []).slice(-26);
       const maxU = Math.max(...series.map(p => p.units), 1);
-      const w = 200, h = 30;
+      const cw = 320, ch = 60;
+      const pad = 4;
+      const innerW = cw - pad*2, innerH = ch - pad*2;
       const points = series.map((p, i) => {
-        const x = (i / Math.max(series.length - 1, 1)) * w;
-        const y = h - (p.units / maxU) * h;
+        const x = pad + (i / Math.max(series.length - 1, 1)) * innerW;
+        const y = pad + innerH - (p.units / maxU) * innerH;
         return `${x},${y}`;
       }).join(" ");
-      const sparkSvg = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="sparkline">
+      const fillPoints = series.length > 1
+        ? `${pad},${pad+innerH} ${points} ${pad+innerW},${pad+innerH}`
+        : "";
+      const chartSvg = `<svg width="100%" viewBox="0 0 ${cw} ${ch}" preserveAspectRatio="none" class="album-chart">
+        ${fillPoints ? `<polygon points="${fillPoints}" fill="#222" opacity="0.06"/>` : ''}
         <polyline points="${points}" fill="none" stroke="#222" stroke-width="1.5"/>
       </svg>`;
 
       const ageWeeks = weekIndex() - ((a.releasedYear-1)*52 + a.releasedWeek);
+      const lastWeekUnits = series.length > 0 ? series[series.length-1].units : 0;
+      const peakWeek = series.reduce((best, p) => p.units > best.units ? p : best, {units: 0});
+      const songs = a.songs || []; // older albums may not have song snapshots
 
-      c.appendChild(el("div", {class:"album-card"},
-        el("div", {class:"album-cover"}, "LP"+a.id),
-        el("div", {class:"album-info"},
-          el("div", {class:"album-title"}, a.name),
-          el("div", {class:"album-meta"},
-            `Released Y${a.releasedYear} W${a.releasedWeek} · ${ageWeeks} week${ageWeeks===1?"":"s"} ago · quality ${a.quality.toFixed(1)}`),
-          el("div", {class:"album-stats"},
-            el("div", {},
-              el("div", {class:"k"}, "Sold"),
-              el("div", {class:"v"}, fmt(a.lifetimeSales))
-            ),
-            el("div", {},
-              el("div", {class:"k"}, "Tracks"),
-              el("div", {class:"v"}, a.trackCount)
-            ),
-          ),
-          el("div", {html: sparkSvg})
+      c.appendChild(el("div", {class:"album-card-full"},
+        // header row: cover + title block
+        el("div", {style:"display:flex;gap:12px;align-items:flex-start"},
+          el("div", {class:"album-cover"}, "LP"+a.id),
+          el("div", {style:"flex:1;min-width:0"},
+            el("div", {class:"album-title"}, a.name),
+            el("div", {class:"album-meta"},
+              `Released ${formatDateMid(gameDate((a.releasedYear-1)*52 + a.releasedWeek))} · ${ageWeeks} week${ageWeeks===1?"":"s"} ago · quality ${a.quality.toFixed(1)}`),
+            // Sales stats
+            el("div", {class:"album-stats"},
+              el("div", {},
+                el("div", {class:"k"}, "Lifetime"),
+                el("div", {class:"v"}, fmt(a.lifetimeSales))
+              ),
+              el("div", {},
+                el("div", {class:"k"}, "This week"),
+                el("div", {class:"v"}, fmt(lastWeekUnits))
+              ),
+              el("div", {},
+                el("div", {class:"k"}, "Peak"),
+                el("div", {class:"v"}, fmt(peakWeek.units))
+              ),
+            )
+          )
+        ),
+        // Tracklist (full-width, only if we have song data)
+        songs.length > 0 ? el("div", {class:"track-list"},
+          el("div", {class:"track-list-title"}, `Tracks · ${songs.length}`),
+          ...songs.map((s, i) => el("div", {class:"track-row"},
+            el("span", {class:"track-num"}, `${i+1}.`),
+            el("span", {class:"track-name"}, s.name),
+            el("span", {class:"track-stats"}, `H${s.hook} · V${s.vibe} · E${s.edge}`)
+          ))
+        ) : el("div", {class:"track-list-empty"},
+          `${a.trackCount} tracks · names not saved (pre-v0.10 album)`
+        ),
+        // Sales chart full-width
+        el("div", {class:"album-chart-wrap"},
+          el("div", {class:"album-chart-label"},
+            `Weekly sales · last ${series.length} week${series.length===1?"":"s"}`),
+          el("div", {html: chartSvg})
         )
       ));
     }
@@ -1807,9 +1915,7 @@ function buildLineChart({values, events, width, height, color, currentWeekIdx, v
   const ticks = [0, Math.floor(values.length/2), values.length-1];
   for (const i of ticks) {
     const w = firstWeekIdx + i;
-    const wkYear = Math.floor((w-1) / 52) + 1;
-    const wkWeek = ((w-1) % 52) + 1;
-    parts.push(`<text x="${xFor(i)}" y="${height-6}" font-size="9" fill="#aaa" text-anchor="middle">Y${wkYear}W${wkWeek}</text>`);
+    parts.push(`<text x="${xFor(i)}" y="${height-6}" font-size="9" fill="#aaa" text-anchor="middle">${formatDateMonth(gameDate(w))}</text>`);
   }
 
   return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;">${parts.join('')}</svg>`;
@@ -1832,15 +1938,15 @@ function renderTour() {
   } else {
     for (const g of upcoming) {
       const wa = g.weekIdx - weekIndex();
-      const yr = Math.floor((g.weekIdx-1)/52)+1;
-      const wk = ((g.weekIdx-1)%52)+1;
+      const d = gameDate(g.weekIdx);
       const expected = (g.city === 'hometown' ? S.fans * 0.10 : S.fans * 0.04) + 30;
       const projAtt = Math.min(g.capacity, Math.round(expected));
       const projPct = Math.round(projAtt / g.capacity * 100);
       c.appendChild(el("div", {class:"gig-card"},
         el("div", {class:"gig-cal"},
-          el("div", {class:"gig-cal-week"}, `W${wk}`),
-          el("div", {class:"gig-cal-year"}, `Y${yr}`)
+          el("div", {style:"font-size:9px;opacity:0.7;margin-bottom:1px"}, DOW[d.getDay()]),
+          el("div", {class:"gig-cal-week"}, d.getDate()),
+          el("div", {class:"gig-cal-year"}, MONTHS[d.getMonth()].toUpperCase())
         ),
         el("div", {class:"gig-info"},
           el("div", {class:"gig-venue"}, `${g.venue}`),
@@ -1970,14 +2076,12 @@ function renderCharts() {
     const list = el("div", {class:"events-list"});
     // newest first
     for (const ev of [...events].reverse()) {
-      const yearOf = Math.floor((ev.weekIdx - 1) / 52) + 1;
-      const weekOf = ((ev.weekIdx - 1) % 52) + 1;
       const dot = el("span", {class: "ev-dot " + ev.kind});
       list.appendChild(el("div", {class:"ev-row"},
         dot,
         el("div", {class:"ev-body"},
           el("div", {class:"ev-label"}, ev.label),
-          el("div", {class:"ev-when"}, `Y${yearOf} W${weekOf}`)
+          el("div", {class:"ev-when"}, formatDateMid(gameDate(ev.weekIdx)))
         )
       ));
     }
@@ -2064,10 +2168,20 @@ function renderSavesModal() {
 
     // Body
     if (data) {
+      // Try to format the slot's date for preview
+      let dateLabel = `Y${data.year} W${data.week}`;
+      try {
+        if (data.startDate) {
+          const d = new Date(data.startDate);
+          const wkIdx = (data.year - 1) * 52 + data.week;
+          d.setDate(d.getDate() + (wkIdx - 1) * 7);
+          dateLabel = formatDateMid(d);
+        }
+      } catch(e) {}
       card.appendChild(el("div", {class:"slot-body"},
         el("div", {class:"slot-title"}, data.bandName),
         el("div", {class:"slot-meta"},
-          `Y${data.year} W${data.week} · ${data.albumCount} album${data.albumCount===1?"":"s"}`),
+          `${dateLabel} · ${data.albumCount} album${data.albumCount===1?"":"s"}`),
         el("div", {class:"slot-stats"},
           el("span", {}, `${fmt(data.fans)} fans`),
           el("span", {}, `${fmt(data.lifetimeSales)} sold`),
@@ -2113,7 +2227,7 @@ function render() {
   app.appendChild(el("div", {class:"nav"}, titles[S.tab],
     el("button", {class:"meta meta-btn",
       onclick: () => { savesModalOpen = true; render(); }},
-      `Slot ${activeSlot} · ${weekLabel()}`)));
+      `Slot ${activeSlot} · ${formatDateShort(gameDate())}`)));
   // Screen
   let screen;
   if (S.tab === "dashboard") screen = renderDashboard();
